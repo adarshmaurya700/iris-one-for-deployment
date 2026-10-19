@@ -38,8 +38,8 @@ Background workers crawl and verify listings once every 12 hours so student sear
 ## 🐟 How TinyFish Powers IRIS onE (Core Architecture)
 
 IRIS onE natively integrates all three surfaces of the official **TinyFish Web Agent & Data Platform** to guarantee 99.9% data freshness and eliminate hallucinated student listings.
-
 ```mermaid
+
 flowchart LR
     A["Student Query / Feed Request"] --> B["Stage A: TinySearch API<br/>(api.search.tinyfish.ai)"]
     B --> C["Stage B: TinyFetch API<br/>(api.fetch.tinyfish.ai, ttl: 0)"]
@@ -47,6 +47,11 @@ flowchart LR
     D --> E["Filter Layer 2: Gemini 2.5 Flash<br/>(RAG + Policy Conflict Shield)"]
     E --> F["High-Concurrency SQLite WAL<br/>(Parse Once, Cache Globally)"]
     F --> G["Live Student Dashboard &<br/>RFC 5545 Calendar Feed (.ics)"]
+
+
+
+
+
 
 glimse of the app
 
