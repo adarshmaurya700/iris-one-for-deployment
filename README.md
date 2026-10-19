@@ -58,10 +58,12 @@ glimse of the app
 <img width="1358" height="741" alt="Screenshot 2026-10-19 165127" src="https://github.com/user-attachments/assets/75cf53a2-00b2-413c-a720-2a8f5f5397b9" />
 <img width="902" height="561" alt="Screenshot 2026-10-19 165241" src="https://github.com/user-attachments/assets/aeae12e2-1dfc-47ea-b413-296fbe6c9380" />
 
+
+<img width="502" height="477" alt="Screenshot 2026-10-20 015040" src="https://github.com/user-attachments/assets/48b60132-9485-4167-a548-dfff3adad230" />
+
+
 <img width="897" height="667" alt="Screenshot 2026-10-19 165443" src="https://github.com/user-attachments/assets/ae490a6b-c1cb-46d0-a391-34f2306f0bbc" />
 
 
-
-<img width="502" height="477" alt="Screenshot 2026-10-20 015040" src="https://github.com/user-attachments/assets/48b60132-9485-4167-a548-dfff3adad230" />
 
 
