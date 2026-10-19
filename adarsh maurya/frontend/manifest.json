@@ -1,0 +1,26 @@
+{
+  "name": "IRIS onE — Student Opportunity Intelligence Platform",
+  "short_name": "IRIS onE",
+  "description": "AI-powered student opportunity matching, verification, and deadline intelligence platform.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F6F1EA",
+  "theme_color": "#111625",
+  "categories": ["education", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/bird_exact.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/bird_exact.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

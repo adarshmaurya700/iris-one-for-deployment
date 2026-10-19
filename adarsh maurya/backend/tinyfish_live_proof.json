@@ -1,0 +1,51 @@
+{
+  "generated_at_utc": "2026-10-19T09:10:55.439814+00:00",
+  "tinyfish_api_key_masked": "sk-tinyfish...tqOY",
+  "wallet_before_usd": 10.776,
+  "queries_executed": [
+    {
+      "opportunity_id": "airtel",
+      "query": "Bharti Airtel Scholarship Buddy4Study",
+      "discovered_url": "https://www.buddy4study.com/page/Bharti-Airtel-Scholarship",
+      "search_duration_ms": 2043,
+      "search_results_count": 9,
+      "fetch_duration_ms": 18224,
+      "markdown_char_length": 0,
+      "markdown_preview": "",
+      "agent_run_id": "2370b6ff-a851-4bfa-bf0b-3fea1759c450",
+      "agent_status": "COMPLETED",
+      "agent_duration_ms": 29214,
+      "agent_output": "### Bharti Airtel Scholarship 2026-27 \u2013 Complete Details\n\n**Application Status:** Application is currently **CLOSED** for the 2026-27 cycle.\n\n---\n\n**Official Title:** Bharti Airtel Scholarship 2026-27\n\n**Deadline Date:** October 11, 2026 (11-Oct-2026)\n\n---\n\n**Financial Grant Value:**\n- **100% coverage of annual tuition fees** as per the respective university/institute's fee structure\n- **Hostel and mess fees** fully covered (for students in PG/external hostel, funds released as per institute charges or actuals, whichever is less)\n- **A laptop** provided to all Bharti Scholars in their first year\n- Scholarships available for the full duration of UG/integrated courses, up to 5 years (subject to renewal criteria)\n\n*Note: Sundry and refundable expenses (counselling fee, library fee, security d"
+    },
+    {
+      "opportunity_id": "delhi-mcm",
+      "query": "Delhi Higher Education Merit cum Means scholarship",
+      "discovered_url": "https://www.myscheme.gov.in/schemes/mcmlfas",
+      "search_duration_ms": 1632,
+      "search_results_count": 10,
+      "fetch_duration_ms": 5767,
+      "markdown_char_length": 0,
+      "markdown_preview": "",
+      "agent_run_id": "677f69ca-f928-4894-8d44-75704742931d",
+      "agent_status": "COMPLETED",
+      "agent_duration_ms": 39928,
+      "agent_output": "## Findings for Merit Cum Means Linked Financial Assistance Scheme\n\n### Scheme Title:\nMerit Cum Means Linked Financial Assistance Scheme\n\n### Eligible Family Income Limit:\nThe scheme has a maximum family income limit of **\u20b96 Lakh per annum**, with different tiers:\n- **Category 1:** Beneficiaries under the National Food Security Scheme (with issued Card) \u2014 No specific income limit mentioned for this category\n- **Category 2:** Family income up to \u20b92.50 Lakh per annum\n- **Category 3:** Family income above \u20b92.50 Lakh per annum but not exceeding \u20b96 Lakh per annum\n\n### Tuition Fee Waiver Percentage:\nThe tuition fee reimbursement varies based on the income category:\n- **100%** tuition fee reimbursement for beneficiaries under the National Food Security Scheme\n- **50%** tuition fee reimbursement f"
+    }
+  ],
+  "agent_runs": [
+    {
+      "run_id": "2370b6ff-a851-4bfa-bf0b-3fea1759c450",
+      "url": "https://www.buddy4study.com/page/Bharti-Airtel-Scholarship",
+      "status": "COMPLETED",
+      "duration_ms": 29214
+    },
+    {
+      "run_id": "677f69ca-f928-4894-8d44-75704742931d",
+      "url": "https://www.myscheme.gov.in/schemes/mcmlfas",
+      "status": "COMPLETED",
+      "duration_ms": 39928
+    }
+  ],
+  "wallet_after_usd": 10.648,
+  "wallet_spent_usd": 0.128
+}

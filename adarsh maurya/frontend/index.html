@@ -1,0 +1,1710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IRIS onE — Student Opportunity Platform</title>
+  <meta name="description" content="AI-powered opportunity intelligence and 2-filter verification engine for scholarships, internships, competitions, and grants." />
+  <meta name="theme-color" content="#111625" />
+  <link rel="icon" type="image/png" href="/bird_exact.png" />
+  <link rel="apple-touch-icon" href="/bird_exact.png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- OpenGraph Metadata -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="IRIS onE — Student Opportunity Intelligence Platform" />
+  <meta property="og:description" content="AI-powered opportunity intelligence and 2-filter verification engine for scholarships, internships, competitions, and grants." />
+  <meta property="og:image" content="/banner_exact.png" />
+  <meta property="og:url" content="https://iris-one.edu" />
+
+  <!-- Twitter Card Metadata -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="IRIS onE — Student Opportunity Intelligence Platform" />
+  <meta name="twitter:description" content="AI-powered opportunity intelligence and 2-filter verification engine for scholarships, internships, competitions, and grants." />
+  <meta name="twitter:image" content="/banner_exact.png" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            serif: ['Playfair Display', 'Georgia', 'serif'],
+            script: ['Caveat', 'cursive'],
+            ui: ['Plus Jakarta Sans', 'Inter', 'sans-serif']
+          },
+          colors: {
+            irisDark: '#0A090F',
+            irisGold: '#D4AF37',
+            irisGoldDark: '#B8962E',
+            irisOrange: '#E58929',
+            irisPurple: '#7C3AED',
+            irisPurpleLight: '#A78BFA',
+            irisSecondary: '#A1A1AA',
+            irisMuted: '#6B6B7B'
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Google Fonts: Inter, Playfair Display, Fraunces, Caveat, Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,400&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css?v=2.5" />
+</head>
+<body class="antialiased selection:bg-[#7C3AED] selection:text-white">
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!--  BACKGROUND FLOATING PARTICLES & LINES     -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div id="particles-container" class="fixed inset-0 pointer-events-none z-0 overflow-hidden" aria-hidden="true">
+    <svg width="100%" height="100%" class="absolute inset-0">
+      <line x1="8%" y1="18%" x2="28%" y2="38%" stroke="rgba(124, 58, 237, 0.08)" stroke-width="1"/>
+      <line x1="72%" y1="12%" x2="48%" y2="42%" stroke="rgba(212, 175, 55, 0.06)" stroke-width="1"/>
+      <line x1="88%" y1="62%" x2="58%" y2="82%" stroke="rgba(124, 58, 237, 0.07)" stroke-width="1"/>
+      <line x1="20%" y1="75%" x2="45%" y2="88%" stroke="rgba(212, 175, 55, 0.05)" stroke-width="1"/>
+    </svg>
+    <div class="particle bg-[rgba(124,58,237,0.45)] w-1.5 h-1.5 top-[16%] left-[10%]" style="animation-delay: 0s;"></div>
+    <div class="particle bg-[rgba(212,175,55,0.4)] w-1 h-1 top-[36%] left-[30%]" style="animation-delay: 1.6s;"></div>
+    <div class="particle bg-[rgba(124,58,237,0.35)] w-2 h-2 top-[12%] left-[70%]" style="animation-delay: 0.9s;"></div>
+    <div class="particle bg-[rgba(212,175,55,0.35)] w-1.5 h-1.5 top-[68%] left-[18%]" style="animation-delay: 2.7s;"></div>
+    <div class="particle bg-[rgba(124,58,237,0.3)] w-1 h-1 top-[78%] left-[62%]" style="animation-delay: 3.2s;"></div>
+    <div class="particle bg-[rgba(212,175,55,0.3)] w-1.5 h-1.5 top-[48%] left-[86%]" style="animation-delay: 4.1s;"></div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!--  SCREEN 1: LOGIN / SIGNUP SCREEN           -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section id="screen-login" class="screen active min-h-screen items-center justify-center relative z-10 px-4 py-12">
+    <div class="w-full max-w-md anim-fade-up">
+
+      <!-- IRIS Brand Header -->
+      <div class="text-center mb-7">
+        <div class="flex justify-center mb-4 cursor-pointer transform hover:scale-105 transition-transform" onclick="router.navigate('login')">
+          <img src="assets/iris-bird-logo@2x.png" alt="IRIS Logo" class="w-14 h-16 object-contain filter drop-shadow-[0_0_16px_rgba(212,175,55,0.45)]" />
+        </div>
+        <h1 class="text-3xl font-bold tracking-tight flex items-baseline justify-center gap-1.5">
+          <span class="text-white font-bold font-sans">IRIS</span>
+          <span class="font-medium text-[#A78BFA] font-sans text-2xl">one</span>
+        </h1>
+        <p class="text-[#6B6B7B] text-sm mt-1.5 font-normal">Your gateway to every student opportunity</p>
+      </div>
+
+      <!-- Login / Signup Card -->
+      <div class="glass-strong gold-top-accent p-7 sm:p-8 shadow-2xl relative">
+        <form id="auth-form" onsubmit="event.preventDefault(); handleAuthSubmit();">
+          
+          <!-- Full Name Field (shown only in Signup mode) -->
+          <div id="signup-name-group" class="mb-4 hidden">
+            <label for="auth-name" class="block text-xs font-medium mb-2 text-[#A1A1AA]">Full Name</label>
+            <input
+              id="auth-name"
+              type="text"
+              class="iris-input"
+              placeholder="e.g. Adarsh Maurya"
+              autocomplete="name"
+            />
+          </div>
+
+          <!-- Email Input -->
+          <div class="mb-4">
+            <label for="auth-email" class="block text-xs font-medium mb-2 text-[#A1A1AA]">Email</label>
+            <input
+              id="auth-email"
+              type="email"
+              required
+              class="iris-input"
+              placeholder="student@university.edu.in"
+              value="student@university.edu.in"
+              autocomplete="email"
+            />
+          </div>
+
+          <!-- Password Input -->
+          <div class="mb-3">
+            <label for="auth-password" class="block text-xs font-medium mb-2 text-[#A1A1AA]">Password</label>
+            <div class="relative">
+              <input
+                id="auth-password"
+                type="password"
+                required
+                class="iris-input pr-10"
+                placeholder="••••••••"
+                value="student123"
+                autocomplete="current-password"
+              />
+              <button
+                type="button"
+                id="eye-toggle-btn"
+                onclick="togglePasswordVisibility()"
+                class="eye-toggle absolute right-3 top-1/2 -translate-y-1/2 text-[#6B6B7B] hover:text-white"
+                title="Toggle password visibility"
+              >
+                <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Red Dot + Forgot Password Link -->
+            <div id="forgot-password-row" class="flex items-center justify-between mt-2.5">
+              <div class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)]"></div>
+              <a href="#" onclick="event.preventDefault(); showToast('Password reset link sent to your email', 'info');" class="text-xs text-red-400 hover:text-red-300 transition-colors">Forgot password?</a>
+            </div>
+          </div>
+
+          <!-- Gold Submit Button -->
+          <div class="mt-5">
+            <button
+              id="auth-submit-btn"
+              type="submit"
+              class="btn-gold w-full py-3 text-sm font-bold rounded-xl tracking-wide flex items-center justify-center gap-2"
+            >
+              <span id="auth-btn-text">LOGIN</span>
+              <svg id="auth-spinner" class="animate-spin hidden h-4 w-4 text-[#0A090F]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+            </button>
+          </div>
+        </form>
+
+        <!-- Divider -->
+        <div class="flex items-center my-5">
+          <div class="flex-1 h-px bg-white/10"></div>
+          <span class="px-3 text-xs text-[#6B6B7B]">or continue with</span>
+          <div class="flex-1 h-px bg-white/10"></div>
+        </div>
+
+        <!-- 3 Social Buttons -->
+        <div class="grid grid-cols-3 gap-3">
+          <!-- Google -->
+          <button
+            type="button"
+            class="social-btn"
+            onclick="handleSocialLogin('Google')"
+            title="Sign in with Google"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span class="text-xs">Google</span>
+          </button>
+
+          <!-- GitHub -->
+          <button
+            type="button"
+            class="social-btn"
+            onclick="handleSocialLogin('GitHub')"
+            title="Sign in with GitHub"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="#FFFFFF">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+            <span class="text-xs">GitHub</span>
+          </button>
+
+          <!-- Apple -->
+          <button
+            type="button"
+            class="social-btn"
+            onclick="handleSocialLogin('Apple')"
+            title="Sign in with Apple"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="#FFFFFF">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+            </svg>
+            <span class="text-xs">Apple</span>
+          </button>
+        </div>
+
+        <!-- Footer / Toggle Mode -->
+        <div class="text-center mt-6">
+          <p id="auth-toggle-msg" class="text-xs text-[#6B6B7B]">
+            Don't have an account?
+            <a href="#" onclick="event.preventDefault(); toggleAuthMode();" class="text-[#D4AF37] hover:underline font-medium ml-1">Sign up</a>
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!--  SCREEN 2: QUICK SETUP (Two-Column)        -->
+  <!-- ═══════════════════════════════════════════ -->
+  <section id="screen-setup" class="screen min-h-screen items-center justify-center relative z-10 px-4 py-8">
+    <div class="w-full max-w-4xl anim-fade-up">
+
+      <!-- Step Header -->
+      <div class="text-center mb-8">
+        <p class="text-xs font-semibold tracking-widest text-[#D4AF37] mb-1.5 uppercase">Step 02</p>
+        <h2 class="text-2xl md:text-3xl font-bold tracking-tight text-white">Quick Setup</h2>
+        <p class="text-[#A1A1AA] text-sm mt-1.5">Tell us about yourself to personalize your feed</p>
+      </div>
+
+      <!-- Two-Column Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- LEFT CARD: Student Profile Form -->
+        <div class="glass-strong gold-top-accent p-6 flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-semibold mb-5 flex items-center gap-2 text-white">
+              <span class="text-[#D4AF37] text-lg">●</span> Student Profile
+            </h3>
+
+            <div class="space-y-4">
+              <!-- Full Name -->
+              <div>
+                <label for="setup-name" class="block text-xs font-medium mb-1.5 text-[#A1A1AA]">Full Name</label>
+                <input id="setup-name" type="text" class="iris-input" value="Adarsh Maurya" placeholder="Your name" />
+              </div>
+
+              <!-- Class / College -->
+              <div>
+                <label for="setup-college" class="block text-xs font-medium mb-1.5 text-[#A1A1AA]">Degree / Class / University</label>
+                <input id="setup-college" type="text" class="iris-input" value="B.Tech CSE, 2nd Year" placeholder="e.g. B.Tech CSE, 2nd Year or 12th CBSE" />
+              </div>
+
+              <!-- Age & State in 2 cols -->
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label for="setup-age" class="block text-xs font-medium mb-1.5 text-[#A1A1AA]">Age</label>
+                  <input id="setup-age" type="number" class="iris-input" value="20" placeholder="20" />
+                </div>
+                <div>
+                  <label for="setup-state" class="block text-xs font-medium mb-1.5 text-[#A1A1AA]">State</label>
+                  <input id="setup-state" type="text" class="iris-input" value="Delhi" placeholder="State" />
+                </div>
+              </div>
+
+              <!-- Skills input with dynamic pill feedback -->
+              <div>
+                <label for="setup-skills" class="block text-xs font-medium mb-1.5 text-[#A1A1AA]">Skills (comma-separated)</label>
+                <input
+                  id="setup-skills"
+                  type="text"
+                  class="iris-input"
+                  value="Python, FastAPI, LLM, Backend"
+                  placeholder="Python, Problem Solving, Mathematics, C++"
+                  oninput="updateSkillsPillsFromInput()"
+                />
+              </div>
+
+              <!-- Resume Upload area -->
+              <div>
+                <label class="block text-xs font-medium mb-1.5 text-[#A1A1AA]">Resume (optional)</label>
+                <div
+                  class="iris-input flex items-center justify-between cursor-pointer hover:border-[#7C3AED]/40 transition-colors"
+                  onclick="document.getElementById('resume-upload-input').click()"
+                >
+                  <span id="resume-filename-label" class="text-[#6B6B7B] text-xs truncate max-w-[200px]">Upload PDF or paste link</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B6B7B" stroke-width="2" class="flex-shrink-0">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                </div>
+                <input
+                  type="file"
+                  id="resume-upload-input"
+                  accept=".pdf,.doc,.docx"
+                  class="hidden"
+                  onchange="handleResumeFileSelected(this)"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="text-xs text-[#6B6B7B] mt-5">
+            🔒 Your data is private and only used to match opportunities.
+          </div>
+        </div>
+
+        <!-- RIGHT CARD: Opportunity Domains & Skills Preview -->
+        <div class="glass-strong gold-top-accent p-6 flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-semibold mb-1 flex items-center gap-2 text-white">
+              <span style="color: #7C3AED;" class="text-lg">●</span> Opportunity Domains
+            </h3>
+            <p class="text-xs text-[#6B6B7B] mb-4">Select the categories IRIS should track</p>
+
+            <!-- 6 Domain Tag Buttons -->
+            <div class="grid grid-cols-2 gap-3" id="domain-tag-grid">
+              <button type="button" class="tag-btn active" data-domain="Scholarships" onclick="toggleDomainTag(this)">
+                <span>🎓 Scholarships</span>
+              </button>
+              <button type="button" class="tag-btn active" data-domain="Free Offers" onclick="toggleDomainTag(this)">
+                <span>🎁 Free Offers</span>
+              </button>
+              <button type="button" class="tag-btn active" data-domain="Hackathons" onclick="toggleDomainTag(this)">
+                <span>💻 Hackathons</span>
+              </button>
+              <button type="button" class="tag-btn active" data-domain="Competitions" onclick="toggleDomainTag(this)">
+                <span>⭐ Competitions</span>
+              </button>
+              <button type="button" class="tag-btn" data-domain="Market Events" onclick="toggleDomainTag(this)">
+                <span>📅 Market Events</span>
+              </button>
+              <button type="button" class="tag-btn" data-domain="Olympiads" onclick="toggleDomainTag(this)">
+                <span>🏆 Olympiads</span>
+              </button>
+            </div>
+
+            <!-- Detected Skills Pills -->
+            <div class="mt-6">
+              <p class="text-xs text-[#6B6B7B] mb-2.5">Detected skills:</p>
+              <div id="skills-pills-container" class="flex flex-wrap gap-2">
+                <span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-[rgba(124,58,237,0.15)] text-[#A78BFA] border border-[rgba(124,58,237,0.25)]">Python</span>
+                <span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-[rgba(124,58,237,0.15)] text-[#A78BFA] border border-[rgba(124,58,237,0.25)]">FastAPI</span>
+                <span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-[rgba(124,58,237,0.15)] text-[#A78BFA] border border-[rgba(124,58,237,0.25)]">LLM</span>
+                <span class="px-2.5 py-1 rounded-lg text-xs font-medium bg-[rgba(212,175,55,0.15)] text-[#D4AF37] border border-[rgba(212,175,55,0.25)]">Backend</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gold CTA Button -->
+          <div class="mt-8">
+            <button
+              id="setup-submit-btn"
+              type="button"
+              onclick="handleSetupSubmit()"
+              class="btn-gold w-full py-3.5 text-xs sm:text-sm rounded-xl tracking-wide font-bold flex items-center justify-center gap-2"
+            >
+              <span>Generate Personalized Opportunity Feed</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Back to Login Navigation -->
+      <div class="text-center mt-6">
+        <button onclick="router.navigate('login')" class="text-xs text-[#6B6B7B] hover:text-[#A1A1AA] transition-colors inline-flex items-center gap-1">
+          <span>←</span> Back to Login
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!--  SCREEN 3: DASHBOARD (Exact Three-Column Reference)    -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+      <section id="screen-dashboard" class="screen min-h-screen relative z-10">
+    <div class="flex min-h-screen w-full">
+
+      <!-- ▌LEFT SIDEBAR (Exact 175px width, dark navy #111625, border-right) ▌ -->
+      <aside id="left-sidebar" class="w-[175px] min-w-[175px] max-w-[175px] flex-shrink-0 flex flex-col p-3 pt-4 justify-between relative overflow-hidden" style="background-color: var(--bg-sidebar-dark);">
+        <div class="relative z-10">
+          <!-- Brand Logo and Name (Exact 100% Match to Reference) -->
+          <div class="flex items-center gap-2.5 px-2 mb-6 cursor-pointer" onclick="router.navigate('dashboard')">
+            <img src="assets/iris-bird-logo@2x.png" alt="IRIS Logo" class="w-6 h-7 object-contain flex-shrink-0" />
+            <div class="leading-none flex items-baseline gap-1">
+              <span class="text-base font-bold tracking-tight text-white font-sans">IRIS</span>
+              <span class="text-sm font-medium text-[#8E9CB8] font-sans">one</span>
+            </div>
+          </div>
+
+          <!-- Nav Items (Exact 7 items from reference screenshot) -->
+          <nav class="space-y-1">
+            <div class="dash-sidebar-item active" data-nav="home" onclick="handleNavClick(this, 'home')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+              <span>Home</span>
+            </div>
+
+            <div class="dash-sidebar-item" data-nav="opportunities" onclick="handleNavClick(this, 'opportunities')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+              </svg>
+              <span>Opportunities</span>
+            </div>
+
+            <div class="dash-sidebar-item" data-nav="saved" onclick="handleNavClick(this, 'saved')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+              </svg>
+              <span>Saved</span>
+              <span id="sidebar-saved-count" class="ml-auto text-[10px] bg-[#1D263B] text-white px-2 py-0.5 rounded-full font-bold">3</span>
+            </div>
+
+            <div class="dash-sidebar-item" data-nav="applications" onclick="handleNavClick(this, 'applications')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+              </svg>
+              <span>Applications</span>
+            </div>
+
+            <div class="dash-sidebar-item" data-nav="profile" onclick="handleNavClick(this, 'profile')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+              <span>Profile</span>
+            </div>
+
+            <div class="dash-sidebar-item" data-nav="ai" onclick="handleNavClick(this, 'ai')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5Z"/>
+              </svg>
+              <span>AI Assistant</span>
+            </div>
+
+            <div class="dash-sidebar-item" data-nav="settings" onclick="handleNavClick(this, 'settings')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+              <span>Settings</span>
+            </div>
+          </nav>
+        </div>
+
+        <!-- Bottom Quote with Gold Sparkle (Exact match to reference bottom-left) -->
+        <div class="px-2 py-3 mt-4 border-t border-white/10 relative z-10">
+          <div class="flex items-start gap-1.5">
+            <span class="text-[#D4AF37] text-xs">✦</span>
+            <div>
+              <p class="text-[12px] text-[#D4AF37] leading-tight italic" style="font-family: 'Caveat', cursive; font-size: 13px;">
+                Better Opportunities,<br/>A Brighter You.
+              </p>
+              <p class="text-[9px] text-[#8E9CB8] mt-1 font-semibold tracking-wide">— IRIS one</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ▌CENTER CONTENT AREA (Warm Cream Background #F6F1EA) ▌ -->
+      <div id="main-canvas" class="flex-1 flex flex-col overflow-hidden" style="background-color: var(--bg-canvas);">
+
+        <!-- Top Header Bar with Search & User Dropdown -->
+        <header class="top-header-canvas flex items-center justify-between gap-4 px-6 py-3 flex-shrink-0 relative">
+          <!-- Search Input with ⌘K shortcut (Pill search) -->
+          <div class="flex-1 max-w-xl">
+            <div class="search-pill-input flex items-center gap-2.5 px-3.5 py-2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2" class="flex-shrink-0">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                id="global-search-input"
+                type="text"
+                class="w-full bg-transparent text-xs sm:text-sm text-[#181B28] placeholder-[#9CA3AF] outline-none"
+                placeholder="Search opportunities, skills, internships, competitions..."
+                oninput="handleGlobalSearch(this.value)"
+              />
+              <div class="flex items-center gap-1 text-[10px] text-[#6B7280] bg-[#F3F4F6] border border-[#E5E7EB] px-1.5 py-0.5 rounded font-mono pointer-events-none flex-shrink-0">
+                ⌘K
+              </div>
+            </div>
+          </div>
+
+          <!-- Top Bar Right Controls -->
+          <div class="flex items-center gap-3 relative">
+            <!-- Docked Profile & AI Assistant Button (Visible only when right sidebar is shrunk) -->
+            <button
+              id="open-right-sidebar-btn"
+              onclick="toggleRightSidebarShrink(false)"
+              class="hidden items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-[#E5E0D8] text-[#181B28] shadow-xs hover:border-[#1E60D5] hover:bg-blue-50/70 transition-all cursor-pointer font-semibold text-xs"
+              title="Expand Student Profile &amp; AI Assistant"
+            >
+              <div class="w-5 h-5 rounded-full bg-[#1E60D5] text-white flex items-center justify-center text-[9px] font-bold">AM</div>
+              <span class="text-xs font-semibold">Profile &amp; AI</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+
+            <!-- Notification Bell -->
+            <div class="relative">
+              <button
+                id="bell-btn"
+                onclick="toggleNotificationsDropdown()"
+                class="relative text-[#4B5563] hover:text-[#181B28] transition-colors p-2 rounded-full hover:bg-black/5 cursor-pointer"
+                title="Notifications"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                <!-- Red dot indicator -->
+                <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-[#EF4444] rounded-full shadow-sm"></span>
+              </button>
+
+              <!-- Notification Dropdown Menu -->
+              <div id="notifications-menu" class="hidden absolute right-0 mt-2 w-72 p-3 text-xs z-50 bg-white border border-[#E8E2D8] rounded-xl shadow-xl text-[#181B28]">
+                <div class="flex items-center justify-between pb-2 border-b border-[#E8E2D8] mb-2">
+                  <span class="font-semibold text-[#181B28]">Notifications</span>
+                  <button onclick="clearNotifications()" class="text-[10px] text-[#1E60D5] hover:underline">Mark read</button>
+                </div>
+                <div class="space-y-2.5 max-h-60 overflow-y-auto">
+                  <div class="flex gap-2 items-start">
+                    <span class="w-2 h-2 rounded-full bg-[#10B981] mt-1 flex-shrink-0"></span>
+                    <div>
+                      <p class="font-medium text-[#181B28]">New 92% Match Available</p>
+                      <p class="text-[10px] text-[#6B7280]">Reliance Foundation Scholarship is ready for review.</p>
+                    </div>
+                  </div>
+                  <div class="flex gap-2 items-start">
+                    <span class="w-2 h-2 rounded-full bg-[#D4AF37] mt-1 flex-shrink-0"></span>
+                    <div>
+                      <p class="font-medium text-[#181B28]">Deadline approaching</p>
+                      <p class="text-[10px] text-[#6B7280]">DAAD Masters application closes in 16 days.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- User Avatar & Profile Dropdown -->
+            <div class="relative">
+              <div
+                id="user-profile-btn"
+                onclick="toggleUserMenu()"
+                class="flex items-center gap-2.5 cursor-pointer py-1 px-1.5 rounded-lg hover:bg-black/5 transition-colors"
+                title="Account & Profile options"
+              >
+                <div id="user-avatar-badge" class="w-8 h-8 rounded-full bg-[#111827] flex items-center justify-center text-xs font-bold text-white shadow-sm flex-shrink-0">
+                  AM
+                </div>
+                <span id="user-display-name-top" class="text-xs sm:text-sm font-semibold hidden lg:block text-[#181B28]">Adarsh Maurya</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </div>
+
+              <!-- Profile Dropdown Menu -->
+              <div id="user-menu-dropdown" class="hidden absolute right-0 mt-2 w-52 p-2 text-xs z-50 bg-white border border-[#E8E2D8] rounded-xl shadow-xl text-[#181B28]">
+                <div class="px-2 py-1.5 border-b border-[#E8E2D8] mb-1">
+                  <p id="dropdown-user-name" class="font-semibold text-[#181B28]">Adarsh Maurya</p>
+                  <p id="dropdown-user-email" class="text-[10px] text-[#6B7280]">student@university.edu.in</p>
+                </div>
+                <button onclick="toggleRightSidebarShrink(false); toggleUserMenu();" class="w-full text-left px-2 py-1.5 rounded hover:bg-[#F3F4F6] text-[#1E60D5] font-semibold flex items-center gap-2 cursor-pointer">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+                  <span>Open Profile &amp; AI</span>
+                </button>
+                <button onclick="router.navigate('setup')" class="w-full text-left px-2 py-1.5 rounded hover:bg-[#F3F4F6] text-[#4B5563] hover:text-[#181B28] flex items-center gap-2 cursor-pointer">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  <span>Edit Profile &amp; Skills</span>
+                </button>
+                <button onclick="openAiChatModal()" class="w-full text-left px-2 py-1.5 rounded hover:bg-[#F3F4F6] text-[#4B5563] hover:text-[#181B28] flex items-center gap-2 cursor-pointer">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/></svg>
+                  <span>Ask AI Assistant</span>
+                </button>
+                <div class="h-px bg-[#E8E2D8] my-1"></div>
+                <button onclick="handleLogout()" class="w-full text-left px-2 py-1.5 rounded hover:bg-red-50 text-red-600 flex items-center gap-2 cursor-pointer">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Scrollable Main Center Area -->
+        <main class="flex-1 overflow-y-auto px-6 py-5 space-y-6" style="background-color: var(--bg-canvas);">
+
+          <!-- 1. WELCOME BANNER (Exact Match to Reference Screenshot + Personal OS Ambience Studio ) -->
+          <div id="dashboard-welcome-banner" class="rounded-2xl p-6 sm:p-7 relative anim-fade-up overflow-hidden shadow-sm flex flex-col justify-between" style="background: url('assets/hero_desk_bg_clean.png') center right / cover no-repeat; min-height: 200px;">
+            
+            <!-- Personal OS Theme / Wallpaper Switcher Button -->
+            <button onclick="openBannerStudioModal()" class="absolute top-3.5 right-3.5 z-20 px-2.5 py-1.5 rounded-xl bg-white/85 hover:bg-white text-xs text-[#181B28] border border-[#E5E0D8] shadow-sm flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-md group" title="Personalize Wall Banner, Focus OS & Widgets">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              <span class="text-[11px] font-semibold text-[#181B28]">Personal OS</span>
+              <span class="text-[9px] bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#B8962E] px-1 rounded font-mono font-bold">Theme</span>
+            </button>
+
+            <div class="relative z-10 max-w-lg">
+              <p id="welcome-greeting-text" class="text-xs sm:text-sm text-[#4B5563] mb-1 font-semibold flex items-center gap-1.5">
+                <span>Good morning,</span>
+                <span id="welcome-user-firstname" class="font-bold text-[#111827]">Adarsh</span>
+                <span>☼</span>
+              </p>
+              <h1 id="welcome-banner-headline" class="text-xl sm:text-2xl font-extrabold tracking-tight mb-1.5 text-[#111827]">
+                Your next opportunity is closer than you think.
+              </h1>
+              
+              <!-- Personal Focus Motto (Clickable to customize) -->
+              <p id="welcome-user-motto" class="text-xs sm:text-sm text-[#4B5563] font-medium leading-relaxed max-w-md mb-4 group cursor-pointer flex items-baseline gap-1" onclick="openBannerStudioModal()" title="Click to customize your personal daily focus goal">
+                <span id="welcome-motto-text">We've found opportunities that match your profile, interests and goals — just for you.</span>
+                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-[#D4AF37] transition-opacity flex-shrink-0">✎</span>
+              </p>
+
+              <!-- Floating Stats Capsule -->
+              <div class="banner-stats-capsule inline-flex items-center py-2 px-3.5 sm:px-4 rounded-2xl relative mb-3" id="stats-container">
+                <!-- Opportunity Metrics View -->
+                <div id="capsule-view-metrics" class="flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
+                  <!-- Match Score -->
+                  <div class="flex items-center gap-2 pr-3 border-r border-[#E8E2D8]">
+                    <div class="w-6 h-6 rounded-full border border-[#059669] flex items-center justify-center text-[10px] font-bold text-[#059669]">
+                      78%
+                    </div>
+                    <div>
+                      <p class="text-[9px] text-[#6B7280] font-medium leading-none">AI Match</p>
+                      <p id="stat-match-score" class="text-xs font-bold text-[#181B28] leading-tight">Strong</p>
+                    </div>
+                  </div>
+                  <!-- Saved -->
+                  <div class="flex items-center gap-1.5 pr-3 border-r border-[#E8E2D8] cursor-pointer hover:opacity-80 transition-opacity" onclick="handleNavClick(document.querySelector('.dash-sidebar-item[data-nav=\'saved\']'), 'saved')" title="View Saved">
+                    <span class="text-xs text-[#D4AF37]">🔖</span>
+                    <div>
+                      <p id="stat-saved-count" class="text-xs font-bold text-[#181B28] leading-none">3</p>
+                      <p class="text-[9px] text-[#6B7280] leading-tight">Saved</p>
+                    </div>
+                  </div>
+                  <!-- Applied -->
+                  <div class="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity" onclick="handleNavClick(document.querySelector('.dash-sidebar-item[data-nav=\'applications\']'), 'applications')" title="View Active Applications">
+                    <span class="text-xs text-[#1E60D5]">📋</span>
+                    <div>
+                      <p id="stat-applied-count" class="text-xs font-bold text-[#181B28] leading-none">5</p>
+                      <p class="text-[9px] text-[#6B7280] leading-tight">Applied</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <button onclick="handleExploreMyMatches()" class="btn-primary-blue text-xs sm:text-sm py-2 px-4 rounded-full font-semibold inline-flex items-center gap-2 shadow-sm cursor-pointer">
+                  <span>Explore my matches</span>
+                  <span class="text-sm font-bold">→</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Right Script Wording: "Better Opportunities. A Brighter You." -->
+            <div id="banner-script-quote-container" class="absolute right-6 bottom-6 hidden lg:block pointer-events-none" style="display: none;">
+              <p id="banner-script-quote" class="font-script text-xl text-[#C89F55] tracking-wide" style="font-family: 'Caveat', cursive; font-size: 22px;">
+                Better Opportunities. A Brighter You.
+              </p>
+            </div>
+          </div>
+
+          <!-- OPPORTUNITY LIVE SCANNER BAR (TinyFish + Gemini Engine) -->
+          <div class="p-2 sm:p-2.5 rounded-xl bg-white border border-[#E8E2D8] flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shadow-sm">
+            <div class="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#FAF6F0] border border-[#E5E0D8] focus-within:border-[#1E60D5] transition-colors">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" class="flex-shrink-0">
+                <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                id="scanner-query-input"
+                type="text"
+                placeholder="Enter opportunity URL (devfolio/buddy4study/etc.) or search query to discover & verify live on web..."
+                class="w-full bg-transparent text-xs text-[#181B28] placeholder-[#9CA3AF] focus:outline-none"
+                onkeydown="if(event.key === 'Enter') handleScanAndVerify()"
+              />
+            </div>
+            <button
+              id="scanner-verify-btn"
+              onclick="handleScanAndVerify()"
+              class="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#B8962E] hover:from-[#E0B84C] hover:to-[#D4AF37] text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+              <span>Scan &amp; Verify</span>
+              <span class="text-[9px] px-1 py-0.2 rounded bg-black/20 font-mono font-bold">TinyFish</span>
+            </button>
+          </div>
+
+          <!-- 2. THREE METRIC STAT CARDS (Row below banner) -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Card 1: AI Match Score -->
+            <div class="metric-stat-card flex flex-col justify-between">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-medium text-[#4B5563]">AI Match Score</span>
+                <span class="text-[10px] text-[#059669] bg-[#D1FAE5] px-1.5 py-0.5 rounded font-semibold">Active</span>
+              </div>
+              <div class="flex items-center gap-3.5 my-1">
+                <div class="relative w-12 h-12 flex items-center justify-center flex-shrink-0">
+                  <svg class="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
+                    <path class="text-[#E5E7EB]" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                    <path id="kpi-score-ring" class="text-[#059669] transition-all duration-700 ease-out" stroke-dasharray="78, 100" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  </svg>
+                  <span id="kpi-score-val" class="absolute inset-0 flex items-center justify-center font-bold text-xs text-[#059669]">78%</span>
+                </div>
+                <div>
+                  <p id="kpi-score-headline" class="text-xs font-semibold text-[#181B28]">You're a strong match!</p>
+                  <button type="button" onclick="openMatchBreakdownModal()" class="text-[11px] text-[#1E60D5] font-medium hover:underline inline-flex items-center gap-0.5 cursor-pointer">
+                    <span>View breakdown</span>
+                    <span class="text-xs">→</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 2: Profile Completeness -->
+            <div class="metric-stat-card flex flex-col justify-between">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-medium text-[#4B5563]">Profile Completeness</span>
+                <span id="kpi-completeness-val" class="text-xs font-bold text-[#181B28]">75%</span>
+              </div>
+              <div class="flex items-center gap-3 my-1">
+                <div class="w-9 h-9 rounded-full bg-[#F3F4F6] border border-[#E5E7EB] flex items-center justify-center text-[#4B5563] flex-shrink-0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 10 3 12 0v-5"/>
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <div class="w-full bg-[#E5E7EB] rounded-full h-1.5 overflow-hidden">
+                    <div id="kpi-completeness-bar" class="bg-[#10B981] h-1.5 rounded-full transition-all duration-700 ease-out" style="width: 75%"></div>
+                  </div>
+                  <p id="kpi-completeness-sub" class="text-[11px] text-[#6B7280] mt-1.5">Add more details to get better matches</p>
+                </div>
+              </div>
+              <!-- Direct 1-Click Action Buttons -->
+              <div class="flex items-center gap-2 mt-2 pt-1 border-t border-[#E8E2D8]/60">
+                <button
+                  type="button"
+                  onclick="triggerKpiResumeUpload()"
+                  class="flex-1 py-1 px-2 rounded-lg text-[10px] font-semibold bg-[#111625] text-[#F8FAFC] hover:bg-[#1D263B] border border-[#1E2638] flex items-center justify-center gap-1 cursor-pointer transition-all shadow-xs"
+                  title="Upload Resume (PDF/DOCX) for Gemini Analysis"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span>Upload Resume</span>
+                </button>
+                <button
+                  type="button"
+                  onclick="handleLoadSampleResume()"
+                  class="py-1 px-2.5 rounded-lg text-[10px] font-bold text-[#1E60D5] bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors cursor-pointer whitespace-nowrap"
+                  title="Load sample engineering profile (Adarsh Maurya, USAR B.Tech CSE)"
+                >
+                  ⚡ Sample Tech
+                </button>
+              </div>
+            </div>
+
+            <!-- Card 3: Top Interests -->
+            <div class="metric-stat-card flex flex-col justify-between">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-medium text-[#4B5563]">Top interests</span>
+                <button onclick="openInterestsModal()" class="text-[#6B7280] hover:text-[#181B28] text-xs transition-colors p-1 rounded hover:bg-black/5 cursor-pointer" title="Edit Interests &amp; Skills">
+                  ✎
+                </button>
+              </div>
+              <div id="kpi-interests-container" class="flex flex-wrap gap-1.5 mt-1.5">
+                <span class="interest-pill">Technology</span>
+                <span class="interest-pill">Research</span>
+                <span class="interest-pill">Innovation</span>
+                <span class="interest-pill">Education</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. RECOMMENDED FOR YOU (3 Pastel Cards & Feed Tabs) -->
+          <div class="anim-fade-up">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5">
+              <!-- Feed Tabs: Recommended Matches | Active Applications | Saved Bookmarks -->
+              <div class="flex items-center gap-1.5 p-1 bg-white border border-[#E8E2D8] rounded-xl shadow-xs">
+                <button
+                  id="tab-btn-recommended"
+                  onclick="switchFeedTab('recommended')"
+                  class="feed-tab-btn active px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5"
+                >
+                  <span>⭐ Recommended Matches</span>
+                  <span id="badge-recommended-count" class="text-[10px] px-1.5 py-0.2 rounded-full font-bold bg-[#D4AF37]/20 text-[#B8962E]">10</span>
+                </button>
+                <button
+                  id="tab-btn-applications"
+                  onclick="switchFeedTab('applications')"
+                  class="feed-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all flex items-center gap-1.5"
+                >
+                  <span>📋 Active Applications</span>
+                  <span id="badge-applications-count" class="text-[10px] px-1.5 py-0.2 rounded-full font-bold bg-blue-100 text-[#1E60D5]">1</span>
+                </button>
+                <button
+                  id="tab-btn-saved"
+                  onclick="switchFeedTab('saved')"
+                  class="feed-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all flex items-center gap-1.5"
+                >
+                  <span>🔖 Saved Bookmarks</span>
+                  <span id="badge-saved-count" class="text-[10px] px-1.5 py-0.2 rounded-full font-bold bg-amber-100 text-amber-800">3</span>
+                </button>
+              </div>
+
+              <!-- Right Tools: High-Contrast Verify Live on Web (TinyFish) + View All -->
+              <div class="flex items-center gap-2">
+                <button
+                  onclick="openLiveVerificationDrawer('reliance')"
+                  class="btn-tinyfish-pill text-[11px] px-3 py-1.5 rounded-lg font-semibold flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+                  title="Run Two-Filter TinyFish + Gemini live web verification engine"
+                >
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+                  </span>
+                  <span class="font-semibold text-[#F8FAFC]">Verify TinyFish</span>
+                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#D4AF37]/25 text-[#FDE047] font-mono font-bold">LIVE</span>
+                </button>
+                <button id="view-all-recommended-btn" onclick="handleViewAllOpportunities()" class="text-xs text-[#1E60D5] hover:underline font-medium flex items-center gap-1 cursor-pointer py-1 px-1.5 rounded hover:bg-black/5 transition-colors">
+                  <span id="view-all-recommended-text">View all</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Description under active tab -->
+            <p id="feed-tab-subheading" class="text-[11px] text-[#6B7280] -mt-1.5 mb-3">
+              Opportunities handpicked for your profile and academic goals.
+            </p>
+
+            <!-- Opportunities Cards Grid (3 across, pastel cards) -->
+            <div id="recommended-cards-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <!-- Dynamically populated via renderRecommendedCards() in app.js -->
+            </div>
+          </div>
+
+          <!-- 4. EXPLORE BY CATEGORY CARDS (Interactive Category Filter) -->
+          <div class="anim-fade-up">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-base font-semibold text-[#181B28]">Explore by category</h3>
+              <button onclick="filterByCategory('All', null)" class="text-xs text-[#1E60D5] hover:underline font-medium cursor-pointer">
+                All categories
+              </button>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" id="category-cards-grid">
+              <!-- 1: Scholarships (Active) -->
+              <div class="category-card active-cat" data-category="Scholarships" onclick="filterByCategory('Scholarships', this)">
+                <div class="cat-icon-container cat-icon-gold">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.8">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 10 3 12 0v-5"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="cat-title">Scholarships</p>
+                  <p class="cat-count">1.2k+ opportunities</p>
+                </div>
+              </div>
+
+              <!-- 2: Internships -->
+              <div class="category-card" data-category="Internships" onclick="filterByCategory('Internships', this)">
+                <div class="cat-icon-container cat-icon-purple">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="cat-title">Internships</p>
+                  <p class="cat-count">3.4k+ opportunities</p>
+                </div>
+              </div>
+
+              <!-- 3: Competitions -->
+              <div class="category-card" data-category="Competitions" onclick="filterByCategory('Competitions', this)">
+                <div class="cat-icon-container cat-icon-purple">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
+                    <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/><path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h10c.55 0 1-.45 1-1v-1c0-.55-.45-1-1-1h-2c-.55 0-1-.45-1-1v-2.34"/><path d="M6 5h12v4a6 6 0 0 1-12 0V5z"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="cat-title">Competitions</p>
+                  <p class="cat-count">1.1k+ opportunities</p>
+                </div>
+              </div>
+
+              <!-- 4: Student Offers -->
+              <div class="category-card" data-category="Student Offers" onclick="filterByCategory('Student Offers', this)">
+                <div class="cat-icon-container cat-icon-purple">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="cat-title">Student Offers</p>
+                  <p class="cat-count">600+ opportunities</p>
+                </div>
+              </div>
+
+              <!-- 5: International -->
+              <div class="category-card" data-category="International" onclick="filterByCategory('International', this)">
+                <div class="cat-icon-container cat-icon-purple">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
+                    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="cat-title">International</p>
+                  <p class="cat-count">800+ opportunities</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. TRENDING THIS WEEK (4 cards across) -->
+          <div class="anim-fade-up">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-base font-semibold flex items-center gap-1.5 text-[#181B28]">
+                <span>📈 Trending this week</span>
+              </h3>
+              <button onclick="handleViewAllOpportunities()" class="text-xs text-[#1E60D5] hover:underline font-medium flex items-center gap-1 cursor-pointer">
+                <span>View all</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Trending 4 Cards Grid -->
+            <div id="trending-cards-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <!-- Dynamically populated via renderTrendingCards() in app.js -->
+            </div>
+          </div>
+
+          <!-- 6. QUICK ACTIONS SECTION (Matches Reference Bottom) -->
+          <div class="anim-fade-up pt-1 pb-4">
+            <div class="mb-2">
+              <h4 class="text-xs font-semibold text-[#181B28] flex items-center gap-1.5">
+                <span class="text-[#D4AF37]">✦</span> Quick actions
+              </h4>
+              <p class="text-[11px] text-[#6B7280]">Complete these steps to get better recommendations.</p>
+            </div>
+            
+            <div class="quick-actions-bar">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] flex-shrink-0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-xs font-semibold text-white">Your next steps</p>
+                  <p class="text-[11px] text-[#9CA3AF]">Quick actions to go on track.</p>
+                </div>
+              </div>
+              <button onclick="handleViewAllOpportunities()" class="text-xs text-[#D4AF37] hover:underline font-semibold flex items-center gap-1 cursor-pointer">
+                <span>View all</span>
+                <span class="text-sm">→</span>
+              </button>
+            </div>
+          </div>
+
+        </main>
+      </div>
+
+      <!-- ▌RIGHT SIDEBAR (Shrinkable Info Bar with All Features Preserved) ▌ -->
+      <aside
+        id="right-sidebar"
+        class="overflow-y-auto p-4 space-y-4"
+        style="background-color: var(--bg-canvas);"
+      >
+        <!-- Header with Shrink Button -->
+        <div class="flex items-center justify-between pb-2 border-b border-[#E8E2D8] mb-1 flex-shrink-0">
+          <div class="flex items-center gap-1.5">
+            <span class="text-xs font-bold text-[#181B28]">✦ Student Profile &amp; AI</span>
+          </div>
+          <button
+            id="sidebar-shrink-toggle-btn"
+            onclick="toggleRightSidebarShrink(true)"
+            class="px-2.5 py-1 rounded-md text-xs font-medium text-[#4B5563] hover:text-[#181B28] bg-white border border-[#E5E0D8] hover:border-[#D1D5DB] shadow-sm flex items-center gap-1 cursor-pointer transition-all"
+            title="Shrink sidebar so main workspace expands to full width"
+          >
+            <span>Shrink</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
+        <!-- ── CARD 1: YOUR PROFILE ── -->
+        <div class="right-sidebar-card">
+          <!-- Top Row -->
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-xs font-semibold text-[#181B28]">✦ Your profile</h4>
+            <button onclick="router.navigate('setup')" class="text-xs text-[#1E60D5] hover:underline font-medium cursor-pointer">
+              Edit
+            </button>
+          </div>
+
+          <!-- Avatar + Name + Degree Toggle -->
+          <div class="flex items-center gap-3 mb-3.5">
+            <div class="w-10 h-10 rounded-full bg-[#1E60D5] flex items-center justify-center text-sm font-bold text-white shadow-sm flex-shrink-0">
+              AM
+            </div>
+            <div class="min-w-0">
+              <p id="right-panel-name" class="text-sm font-bold text-[#181B28] leading-tight">Adarsh Maurya</p>
+              <div class="mt-0.5">
+                <span id="right-panel-badge" onclick="toggleStudentLevel()" title="Click to toggle B.Tech / 12th Mode" class="inline-block text-[10px] text-[#1E60D5] bg-blue-50 hover:bg-blue-100 px-2.5 py-0.5 rounded-full border border-blue-200 font-semibold cursor-pointer transition-all">
+                  B.Tech CSE, 1st Year
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Completeness -->
+          <div class="mb-3.5">
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="text-[#4B5563] font-medium">Profile completeness</span>
+              <span id="right-panel-completeness" class="font-bold text-[#181B28]">75%</span>
+            </div>
+            <div class="w-full h-1.5 rounded-full bg-[#E5E7EB] overflow-hidden">
+              <div id="completeness-bar-fill" class="h-full rounded-full bg-[#10B981]" style="width: 75%"></div>
+            </div>
+          </div>
+
+          <!-- 2x2 Info Grid -->
+          <div class="grid grid-cols-2 gap-2.5 pt-2 border-t border-[#E8E2D8]">
+            <div>
+              <p class="text-[9px] text-[#6B7280] font-medium uppercase">Class / University</p>
+              <p id="info-row-college" class="text-xs font-semibold text-[#181B28] mt-0.5 truncate">USAR</p>
+            </div>
+            <div>
+              <p class="text-[9px] text-[#6B7280] font-medium uppercase">Age</p>
+              <p id="info-row-age" class="text-xs font-semibold text-[#181B28] mt-0.5 truncate">19</p>
+            </div>
+            <div>
+              <p class="text-[9px] text-[#6B7280] font-medium uppercase">City / State</p>
+              <p id="info-row-state" class="text-xs font-semibold text-[#181B28] mt-0.5 truncate">Delhi</p>
+            </div>
+            <div>
+              <p class="text-[9px] text-[#6B7280] font-medium uppercase">Country</p>
+              <p id="info-row-country" class="text-xs font-semibold text-[#181B28] mt-0.5 truncate">India</p>
+            </div>
+          </div>
+
+          <!-- Resume Ingestion & Sample -->
+          <div class="mt-3 pt-3 border-t border-[#E8E2D8] flex items-center gap-2">
+            <input type="file" id="sidebar-resume-input" accept=".pdf,.docx,.txt" class="hidden" onchange="handleSidebarResumeUpload(this)" />
+            <button
+              type="button"
+              onclick="document.getElementById('sidebar-resume-input').click()"
+              class="flex-1 py-1 px-2 rounded-lg text-[11px] font-semibold bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#181B28] border border-[#E5E7EB] flex items-center justify-center gap-1 transition-colors cursor-pointer"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>Upload Resume</span>
+            </button>
+            <button
+              type="button"
+              onclick="handleLoadSampleResume()"
+              class="py-1 px-2 rounded-lg text-[11px] font-medium text-[#1E60D5] hover:bg-blue-50 border border-blue-200 transition-colors cursor-pointer whitespace-nowrap"
+              title="Load sample engineering profile"
+            >
+              Sample Profile
+            </button>
+          </div>
+
+          <!-- 3-Step Ingestion Progress Box -->
+          <div id="sidebar-resume-progress" class="hidden mt-2 p-2 rounded-lg bg-[#FAF6F0] border border-[#E8E2D8] text-[10px] font-mono space-y-1">
+            <div id="resume-step-1" class="text-[#6B7280] flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+              <span>1. Extracting PDF/Docx text</span>
+            </div>
+            <div id="resume-step-2" class="text-[#6B7280] flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+              <span>2. Gemini 2.5 Flash Skills &amp; Gates</span>
+            </div>
+            <div id="resume-step-3" class="text-[#6B7280] flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+              <span>3. Recalculating Match Scores</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── CARD 2: AI ASSISTANT (Beta) ── -->
+        <div class="right-sidebar-card space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-semibold text-[#181B28]">✦ AI Assistant (Beta)</h4>
+            <span class="text-[9px] px-1.5 py-0.2 rounded-md bg-purple-50 text-[#7C3AED] font-semibold border border-purple-200">Beta</span>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-[#181B28]">Hey <span id="ai-greeting-name">Adarsh</span>! 👋</p>
+            <p class="text-xs text-[#4B5563] leading-relaxed mt-0.5">
+              I found <span class="text-[#D4AF37] font-semibold">3 new opportunities</span> that match your profile and interests.
+            </p>
+          </div>
+
+          <!-- Top Match Inner Card -->
+          <div
+            onclick="openDetailDrawer('reliance')"
+            class="top-match-card rounded-xl p-2.5 flex items-center justify-between gap-2 cursor-pointer border border-[#D4AF37]/40 hover:border-[#D4AF37] transition-all bg-[#FFFDF9]"
+          >
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-8 h-8 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0 text-[#B8962E] text-xs font-bold">
+                ★
+              </div>
+              <div class="min-w-0">
+                <p class="text-[9px] text-[#B8962E] font-bold uppercase tracking-wider leading-none">Top match</p>
+                <p class="text-xs font-bold text-[#181B28] truncate leading-tight mt-0.5">Reliance Foundation</p>
+                <p class="text-[10px] text-[#6B7280] leading-none mt-0.5">92% match • May 31</p>
+              </div>
+            </div>
+            <span class="text-xs text-[#D4AF37] font-bold">→</span>
+          </div>
+
+          <!-- Quick Action Pills (4 buttons) -->
+          <div class="grid grid-cols-2 gap-1.5">
+            <button onclick="filterByCategory('Scholarships')" class="quick-action-pill py-1.5 px-2 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] text-[10px] text-[#374151] font-medium flex items-center gap-1 justify-center transition-colors cursor-pointer truncate">
+              <span>🎓 Scholarships</span>
+            </button>
+            <button onclick="openVerificationModal()" class="quick-action-pill py-1.5 px-2 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] text-[10px] text-[#374151] font-medium flex items-center gap-1 justify-center transition-colors cursor-pointer truncate">
+              <span>✓ Eligibility</span>
+            </button>
+            <button onclick="sendQuickAiPrompt('How can I optimize my resume for scholarships?')" class="quick-action-pill py-1.5 px-2 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] text-[10px] text-[#374151] font-medium flex items-center gap-1 justify-center transition-colors cursor-pointer truncate">
+              <span>📝 Resume Tip</span>
+            </button>
+            <button onclick="filterByCategory('Competitions')" class="quick-action-pill py-1.5 px-2 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] text-[10px] text-[#374151] font-medium flex items-center gap-1 justify-center transition-colors cursor-pointer truncate">
+              <span>🏆 Hackathons</span>
+            </button>
+          </div>
+
+          <!-- Ask Iris CTA Button -->
+          <button onclick="openAiChatModal()" class="btn-primary-blue w-full justify-center text-xs py-2 rounded-lg font-semibold cursor-pointer">
+            <span>Ask Iris</span>
+            <span class="text-sm">→</span>
+          </button>
+        </div>
+
+        <!-- ── CARD 3: UPCOMING DEADLINES ── -->
+        <div class="right-sidebar-card">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-xs font-semibold text-[#181B28]">Upcoming deadlines</h4>
+            <button onclick="handleViewAllDeadlines()" class="text-[11px] text-[#1E60D5] hover:underline font-medium cursor-pointer">
+              View all
+            </button>
+          </div>
+
+          <div class="space-y-2.5" id="deadlines-list-container">
+            <!-- Item 1: Reliance -->
+            <div onclick="openDetailDrawer('reliance')" class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-black/5 transition-colors cursor-pointer">
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-semibold text-[#181B28] truncate leading-tight">Reliance Foundation Scholarship</p>
+                <p class="text-[10px] text-[#6B7280] leading-tight mt-0.5">Apply by May 31, 2027</p>
+              </div>
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700 flex-shrink-0">2 days left</span>
+            </div>
+
+            <!-- Item 2: DAAD -->
+            <div onclick="openDetailDrawer('daad')" class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-black/5 transition-colors cursor-pointer">
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-semibold text-[#181B28] truncate leading-tight">DAAD Masters Scholarship</p>
+                <p class="text-[10px] text-[#6B7280] leading-tight mt-0.5">Apply by May 15, 2027</p>
+              </div>
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 flex-shrink-0">16 days left</span>
+            </div>
+
+            <!-- Item 3: Microsoft -->
+            <div onclick="openDetailDrawer('microsoft')" class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-black/5 transition-colors cursor-pointer">
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-semibold text-[#181B28] truncate leading-tight">Microsoft Internship</p>
+                <p class="text-[10px] text-[#6B7280] leading-tight mt-0.5">Apply by Apr 30, 2027</p>
+              </div>
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 flex-shrink-0">31 days left</span>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+
+    </div>
+
+
+    <!-- ── OPPORTUNITY DETAILS MODAL (Centered Window) ── -->
+    <div id="drawer-overlay" class="fixed inset-0 modal-backdrop hidden z-[95] flex items-center justify-center p-3 sm:p-5 overflow-y-auto transition-opacity duration-300" onclick="closeDetailDrawer(event)">
+      <div id="detail-drawer" class="detail-drawer w-full max-w-2xl max-h-[88vh] border border-[rgba(212,175,55,0.28)] rounded-2xl p-6 sm:p-7 overflow-y-auto shadow-2xl relative my-auto" style="background: rgba(13, 11, 19, 0.98); backdrop-filter: blur(36px); box-shadow: 0 25px 90px rgba(0, 0, 0, 0.95), 0 0 50px rgba(212, 175, 55, 0.12);" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between mb-5 pb-3 border-b border-white/10 sticky top-0 bg-[rgba(13,11,19,0.98)] pt-1 -mt-2 z-20 backdrop-blur-md">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#D4AF37] shadow-[0_0_8px_#D4AF37]"></span>
+            <h3 class="text-xs font-bold uppercase tracking-widest text-[#D4AF37]">Opportunity Details</h3>
+          </div>
+          <button onclick="closeDetailDrawer()" class="text-[#8E8678] hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10" title="Close (Esc)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div id="drawer-content">
+          <!-- Rendered dynamically via openDetailDrawer() in app.js -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ASK IRIS AI CHAT MODAL ── -->
+    <div id="ai-modal-overlay" class="fixed inset-0 modal-backdrop hidden z-[100] flex items-center justify-center p-3 sm:p-4" onclick="closeAiChatModal(event)">
+      <div class="glass-strong gold-top-accent w-full max-w-2xl p-5 sm:p-6 shadow-2xl relative rounded-2xl flex flex-col h-[90vh] max-h-[740px]" onclick="event.stopPropagation()">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3.5 border-b border-white/10 mb-3 flex-shrink-0">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-8 h-8 rounded-xl bg-[rgba(124,58,237,0.25)] border border-[rgba(124,58,237,0.4)] flex items-center justify-center text-[#C4B5FD] flex-shrink-0 shadow-xs">
+              <span class="text-sm font-bold">✦</span>
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="font-bold text-sm sm:text-base text-white truncate">✦ Ask Iris — Agentic Opportunity &amp; Eligibility Advisor</h3>
+                <span class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1.5 flex-shrink-0">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Gemini 2.5 Flash + TinyFish Active
+                </span>
+              </div>
+              <p class="text-[10px] text-[#A1A1AA] truncate">Real-time eligibility checking, policy conflict analysis &amp; SOP drafting</p>
+            </div>
+          </div>
+          <button onclick="closeAiChatModal()" class="text-[#8E8678] hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10 flex-shrink-0 cursor-pointer" title="Close (Esc)">✕</button>
+        </div>
+
+        <!-- Grounding Context Banner -->
+        <div id="ai-context-banner" class="px-3.5 py-2 rounded-xl bg-white/[0.04] border border-white/10 mb-3 flex items-center justify-between text-xs text-[#CBD5E1] flex-shrink-0">
+          <div class="flex items-center gap-2 truncate">
+            <span class="text-[#D4AF37] font-bold">✦</span>
+            <span id="ai-context-banner-text" class="truncate text-[11px] font-medium text-zinc-300">
+              Grounded in your profile (Delhi • 78% Match Score) &amp; 26 Verified Opportunities.
+            </span>
+          </div>
+          <span id="ai-active-opp-pill" class="hidden text-[10px] font-bold text-amber-300 bg-amber-500/15 border border-amber-400/30 px-2 py-0.5 rounded-full truncate flex-shrink-0">
+            Active Context
+          </span>
+        </div>
+
+        <!-- Clickable Quick-Action Prompt Pills -->
+        <div class="flex flex-wrap gap-1.5 mb-3 flex-shrink-0" id="ai-quick-prompts-container">
+          <button type="button" onclick="sendQuickAiPrompt('🎓 Compare Bharti Airtel vs Delhi MCM')" class="text-[10px] bg-white/5 hover:bg-white/10 text-[#CBD5E1] hover:text-white px-2.5 py-1 rounded-lg transition-all border border-white/10 hover:border-[#D4AF37]/50 cursor-pointer flex items-center gap-1">
+            <span>🎓 Compare Bharti Airtel vs Delhi MCM</span>
+          </button>
+          <button type="button" onclick="sendQuickAiPrompt('📝 Draft My Scholarship SOP')" class="text-[10px] bg-white/5 hover:bg-white/10 text-[#CBD5E1] hover:text-white px-2.5 py-1 rounded-lg transition-all border border-white/10 hover:border-[#D4AF37]/50 cursor-pointer flex items-center gap-1">
+            <span>📝 Draft My Scholarship SOP</span>
+          </button>
+          <button type="button" onclick="sendQuickAiPrompt('📋 My Mandatory Documents Checklist')" class="text-[10px] bg-white/5 hover:bg-white/10 text-[#CBD5E1] hover:text-white px-2.5 py-1 rounded-lg transition-all border border-white/10 hover:border-[#D4AF37]/50 cursor-pointer flex items-center gap-1">
+            <span>📋 My Mandatory Documents Checklist</span>
+          </button>
+          <button type="button" onclick="sendQuickAiPrompt('🚀 How to boost my Match Score?')" class="text-[10px] bg-white/5 hover:bg-white/10 text-[#CBD5E1] hover:text-white px-2.5 py-1 rounded-lg transition-all border border-white/10 hover:border-[#D4AF37]/50 cursor-pointer flex items-center gap-1">
+            <span>🚀 How to boost my Match Score?</span>
+          </button>
+          <button type="button" onclick="sendQuickAiPrompt('🔍 Scan web for new AI Hackathons')" class="text-[10px] bg-white/5 hover:bg-white/10 text-[#CBD5E1] hover:text-white px-2.5 py-1 rounded-lg transition-all border border-white/10 hover:border-[#D4AF37]/50 cursor-pointer flex items-center gap-1">
+            <span>🔍 Scan web for new AI Hackathons</span>
+          </button>
+        </div>
+
+        <!-- Chat history message area -->
+        <div id="ai-chat-messages" class="flex-1 overflow-y-auto space-y-3.5 pr-1.5 text-xs mb-3">
+          <div class="flex gap-2.5 items-start">
+            <div class="w-7 h-7 rounded-full bg-[#7C3AED] flex items-center justify-center text-xs text-white flex-shrink-0 shadow-xs">✦</div>
+            <div class="glass p-3.5 rounded-2xl max-w-[90%] text-[#CBD5E1] leading-relaxed border border-white/10 space-y-1.5">
+              <p class="font-bold text-white text-xs">Hello Adarsh! I'm Iris, your Opportunity Intelligence Co-pilot.</p>
+              <p class="text-[11px] text-zinc-300">
+                I'm grounded in your <strong>B.Tech 1st Year (GGSIPU USAR, Delhi)</strong> profile and our <strong>26 live-verified opportunities</strong>.
+                I can check eligibility gates, analyze <strong>policy conflicts</strong> (like Bharti Airtel vs Delhi MCM), draft tailored <strong>Statements of Purpose (SOP)</strong>, or deploy <strong>TinyFish live web scanning</strong> for new grants.
+              </p>
+              <p class="text-[10px] text-[#D4AF37] pt-1">Try one of the quick prompts above or ask any question!</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Typing indicator -->
+        <div id="ai-typing-indicator" class="hidden flex gap-2.5 items-start mb-3 flex-shrink-0 anim-fade">
+          <div class="w-7 h-7 rounded-full bg-[#7C3AED] flex items-center justify-center text-xs text-white flex-shrink-0 shadow-xs">✦</div>
+          <div class="p-3 rounded-xl bg-white/5 border border-white/10 text-xs text-[#CBD5E1] flex items-center gap-2.5">
+            <span class="w-2 h-2 rounded-full bg-[#D4AF37] animate-ping"></span>
+            <span class="italic font-medium text-amber-200/90">Iris is analyzing your eligibility gates &amp; verifying with Gemini...</span>
+          </div>
+        </div>
+
+        <!-- Chat input form -->
+        <form onsubmit="event.preventDefault(); submitAiMessage();" class="flex gap-2 pt-2 border-t border-white/10 flex-shrink-0">
+          <input
+            id="ai-chat-input"
+            type="text"
+            class="iris-input text-xs flex-1 rounded-xl py-2.5 px-3.5 bg-white/5 border border-white/15 focus:border-[#D4AF37] text-white placeholder-zinc-400 outline-none"
+            placeholder="Ask Iris about eligibility, conflicts, SOP drafting, or paste a URL to scan..."
+            autocomplete="off"
+          />
+          <button id="ai-chat-send-btn" type="submit" class="btn-gold px-4 text-xs font-bold rounded-xl flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-sm hover:brightness-105">
+            <span>Send</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </form>
+
+      </div>
+    </div>
+
+    <!-- ── DATA INTEGRITY HUB (VERIFICATION FLOW) MODAL ── -->
+    <div id="verification-modal-overlay" class="fixed inset-0 modal-backdrop hidden z-[100] flex items-center justify-center p-4" onclick="closeVerificationModal(event)">
+      <div class="glass-strong gold-top-accent w-full max-w-4xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#7C3AED]/30 to-[#D4AF37]/30 border border-[#D4AF37]/30 flex items-center justify-center text-white">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold text-lg text-white tracking-wide">IRIS VERIFICATION</h3>
+                <span class="text-[10px] px-2.5 py-0.5 rounded-full font-bold tracking-wider accuracy-badge-glow uppercase">99.9% ACCURACY CHECK</span>
+              </div>
+              <p class="text-xs text-[#6B6B7B]">Autonomous AI Ingestion & Cross-Referenced Data Integrity Pipeline</p>
+            </div>
+          </div>
+          <button onclick="closeVerificationModal()" class="text-[#6B6B7B] hover:text-white text-lg p-1">✕</button>
+        </div>
+
+        <!-- Node Graph Visualization (Side-by-side with VS Circle & Glowing Lines) -->
+        <div class="relative grid grid-cols-1 md:grid-cols-11 gap-4 items-center mb-6">
+          
+          <!-- Left Panel: Scraped Data -->
+          <div class="md:col-span-5 scraped-box p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between pb-2 mb-3 border-b border-red-500/20">
+              <span class="text-xs font-bold text-red-400 flex items-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Scraped Data (Raw Ingestion)
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 font-semibold">Unverified</span>
+            </div>
+            <pre id="raw-scraped-json" class="text-[11px] font-mono text-red-300/80 bg-black/40 p-3 rounded-lg overflow-x-auto leading-relaxed h-52">
+{
+  "raw_dump": "&lt;b&gt;LAST DATE:&lt;/b&gt; 31st May / EXTENDED?",
+  "title": "Reliance  Foundation UG Schol.. (2027-28)",
+  "stipend": "Up to Rs 2,00,000 OR 2.6 Lakhs/yr?",
+  "eligibility": "All students min 60% in 10th/12th",
+  "source_url": "http://unverified-aggregator-302.in",
+  "ssl_status": "Untrusted / Missing Certificate",
+  "duplicate_hash": "COLLISION_DETECTED_3x",
+  "schema_valid": false
+}</pre>
+          </div>
+
+          <!-- Center: VS Circle & Connecting Lines -->
+          <div class="md:col-span-1 flex flex-col items-center justify-center my-2 md:my-0">
+            <div class="hidden md:block w-full h-[2px] bg-gradient-to-r from-red-500/30 via-[#7C3AED] to-emerald-500/30 mb-2"></div>
+            <div class="vs-node" id="verification-vs-badge">VS</div>
+            <div class="hidden md:block w-full h-[2px] bg-gradient-to-r from-red-500/30 via-[#7C3AED] to-emerald-500/30 mt-2"></div>
+            <span class="text-[9px] text-[#A78BFA] mt-1 font-semibold uppercase tracking-wider">AI Filter</span>
+          </div>
+
+          <!-- Right Panel: Verified Data -->
+          <div class="md:col-span-5 verified-box p-4 flex flex-col justify-between">
+            <div class="flex items-center justify-between pb-2 mb-3 border-b border-emerald-500/25">
+              <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                Verified Data (Canonical Engine)
+              </span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold">Verified 99.9%</span>
+            </div>
+            <pre id="clean-verified-json" class="text-[11px] font-mono text-emerald-300/90 bg-black/40 p-3 rounded-lg overflow-x-auto leading-relaxed h-52">
+{
+  "canonical_title": "Reliance Foundation Undergraduate Scholarship",
+  "organization": "Reliance Foundation",
+  "verified_deadline": "2027-05-31",
+  "standardized_amount": "₹ 2,60,000 / year",
+  "eligibility": "Students in Class 11-12 & 1st Year Undergrad, Merit > 75%",
+  "official_url": "https://www.reliancefoundation.org/scholarships",
+  "ssl_verified": true,
+  "deduplication_hash": "SHA256:7f83b1657ff1fc53",
+  "schema_valid": true,
+  "ai_confidence": 0.999
+}</pre>
+          </div>
+        </div>
+
+        <!-- Real-Time Pipeline Stats & Actions -->
+        <div class="glass p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="flex items-center gap-3 text-xs text-[#A1A1AA]">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></div>
+            <div>
+              <p class="font-semibold text-white">Live AI Pipeline Active</p>
+              <p class="text-[11px] text-[#6B6B7B]">Scrapes 150+ portals hourly • Deduplicates & checks SSL origins</p>
+            </div>
+          </div>
+          <div class="flex gap-2 w-full sm:w-auto">
+            <button onclick="runLiveCleansingAnimation()" id="run-cleanse-btn" class="btn-gold px-4 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 shadow-md w-full sm:w-auto">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+              <span>Run Live Ingestion Cleanser</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── PERSONAL OS BANNER & AMBIENCE STUDIO MODAL ── -->
+    <div id="banner-studio-modal-overlay" class="fixed inset-0 modal-backdrop hidden z-[100] flex items-center justify-center p-4" onclick="closeBannerStudioModal(event)">
+      <div class="glass-strong gold-top-accent w-full max-w-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#D4AF37]/30 to-[#7C3AED]/30 border border-[#D4AF37]/30 flex items-center justify-center text-[#E0B84C]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold text-lg text-white tracking-wide">Personal OS Studio</h3>
+                <span class="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-[#D4AF37]/15 border border-[#D4AF37]/30 text-[#E0B84C]">WORKSPACE AMBIENCE</span>
+              </div>
+              <p class="text-xs text-[#A39B8B]">Customize your wall banner ambience and personal daily motto.</p>
+            </div>
+          </div>
+          <button onclick="closeBannerStudioModal()" class="text-[#6B6B7B] hover:text-white text-lg p-1 cursor-pointer">✕</button>
+        </div>
+
+        <!-- 1. Wallpapers Selection -->
+        <div class="mb-6">
+          <label class="block text-xs font-semibold text-[#F4EDE3] mb-2.5 uppercase tracking-wider flex items-center justify-between">
+            <span>Choose Wall Banner Mood</span>
+            <span class="text-[10px] text-[#A39B8B] font-normal normal-case">Select an ambient theme</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="banner-themes-grid">
+            <!-- Theme 0: Sunny Workspace (Default Reference) -->
+            <div class="banner-theme-card active cursor-pointer p-2.5 rounded-xl border border-[#D4AF37] bg-white/5 transition-all relative group" data-theme="desk" onclick="selectBannerTheme('desk')">
+              <div class="w-full h-16 rounded-lg overflow-hidden mb-2 relative">
+                <img src="assets/thumb-desk.png" alt="Sunny Workspace" class="w-full h-full object-cover">
+                <span class="theme-check-badge absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[#D4AF37] text-black font-bold text-xs flex items-center justify-center shadow">✓</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-white">Sunny Workspace</span>
+                <span class="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300">Default</span>
+              </div>
+              <p class="text-[10px] text-[#A39B8B] mt-0.5">Sunny desk, laptop, coffee mug & city view</p>
+            </div>
+
+            <!-- Theme 1: Summit Seeker -->
+            <div class="banner-theme-card cursor-pointer p-2.5 rounded-xl border border-white/10 bg-white/5 transition-all relative group" data-theme="summit" onclick="selectBannerTheme('summit')">
+              <div class="w-full h-16 rounded-lg overflow-hidden mb-2 relative">
+                <img src="assets/thumb-summit.png" alt="Summit Seeker" class="w-full h-full object-cover">
+                <span class="theme-check-badge absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[#D4AF37] text-black font-bold text-xs hidden items-center justify-center shadow">✓</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-white">Summit Seeker</span>
+                <span class="text-[9px] px-1.5 py-0.2 rounded bg-[#D4AF37]/20 text-[#E0B84C]">Ambition</span>
+              </div>
+              <p class="text-[10px] text-[#A39B8B] mt-0.5">Twilight peak, golden constellation & hiker</p>
+            </div>
+
+            <!-- Theme 2: Harvest Moon -->
+            <div class="banner-theme-card cursor-pointer p-2.5 rounded-xl border border-white/10 bg-white/5 transition-all relative group" data-theme="harvest-moon" onclick="selectBannerTheme('harvest-moon')">
+              <div class="w-full h-16 rounded-lg overflow-hidden mb-2 relative">
+                <img src="assets/thumb-harvest-moon.png" alt="Harvest Moon" class="w-full h-full object-cover">
+                <span class="theme-check-badge absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[#D4AF37] text-black font-bold text-xs hidden items-center justify-center shadow">✓</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-white">Harvest Moon</span>
+                <span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">Nocturne</span>
+              </div>
+              <p class="text-[10px] text-[#A39B8B] mt-0.5">Giant golden moon over misty autumn pines</p>
+            </div>
+
+            <!-- Theme 3: Solarium Study -->
+            <div class="banner-theme-card cursor-pointer p-2.5 rounded-xl border border-white/10 bg-white/5 transition-all relative group" data-theme="solarium" onclick="selectBannerTheme('solarium')">
+              <div class="w-full h-16 rounded-lg overflow-hidden mb-2 relative">
+                <img src="assets/thumb-solarium.png" alt="Solarium Study" class="w-full h-full object-cover">
+                <span class="theme-check-badge absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[#D4AF37] text-black font-bold text-xs hidden items-center justify-center shadow">✓</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-white">Solarium Sanctuary</span>
+                <span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300">Growth</span>
+              </div>
+              <p class="text-[10px] text-[#A39B8B] mt-0.5">Sunlit greenhouse window, books & calm warmth</p>
+            </div>
+
+            <!-- Theme 4: Deep Focus -->
+            <div class="banner-theme-card cursor-pointer p-2.5 rounded-xl border border-white/10 bg-white/5 transition-all relative group" data-theme="deep-focus" onclick="selectBannerTheme('deep-focus')">
+              <div class="w-full h-16 rounded-lg overflow-hidden mb-2 relative">
+                <img src="assets/thumb-deep-focus.png" alt="Deep Focus" class="w-full h-full object-cover">
+                <span class="theme-check-badge absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[#D4AF37] text-black font-bold text-xs hidden items-center justify-center shadow">✓</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-white">Deep Focus (Clock)</span>
+                <span class="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300">Discipline</span>
+              </div>
+              <p class="text-[10px] text-[#A39B8B] mt-0.5">"The problem is, You think you have time."</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Personal Focus Motto -->
+        <div class="mb-6">
+          <label for="banner-motto-input" class="block text-xs font-semibold text-[#F4EDE3] mb-2 uppercase tracking-wider flex items-center justify-between">
+            <span>Personal Daily Focus / Motto</span>
+            <span class="text-[10px] text-[#A39B8B] font-normal normal-case">Displays below your greeting</span>
+          </label>
+          <div class="relative">
+            <input 
+              type="text" 
+              id="banner-motto-input" 
+              class="iris-input text-xs pr-28" 
+              placeholder="e.g. Target: Reliance Foundation Scholarship & GSoC '25" 
+              value="Your goals are valid. Let's find the right opportunities for them."
+            />
+            <button type="button" onclick="resetDefaultMotto()" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-[#D4AF37] hover:underline font-medium cursor-pointer">
+              Theme Motto
+            </button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+          <button type="button" onclick="closeBannerStudioModal()" class="px-4 py-2 rounded-xl text-xs text-[#A39B8B] hover:text-white transition-colors cursor-pointer">
+            Cancel
+          </button>
+          <button type="button" onclick="saveBannerStudioPreferences()" class="btn-gold px-5 py-2 rounded-xl text-xs font-bold shadow-lg cursor-pointer">
+            Apply & Save
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 4-FACTOR SCORING FORMULA BREAKDOWN MODAL ── -->
+    <div id="match-breakdown-modal-overlay" class="fixed inset-0 modal-backdrop hidden z-[100] flex items-center justify-center p-4" onclick="closeMatchBreakdownModal(event)">
+      <div class="glass-strong gold-top-accent w-full max-w-lg p-6 shadow-2xl relative rounded-2xl" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-sm">
+              %
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-white">4-Factor AI Matching Formula</h3>
+              <p class="text-[10px] text-[#A1A1AA]">Real-time weighted score calculation</p>
+            </div>
+          </div>
+          <button onclick="closeMatchBreakdownModal()" class="text-[#8E8678] hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">✕</button>
+        </div>
+
+        <div class="space-y-3 mb-5 text-xs">
+          <!-- Factor 1: Academic Tier & Stream (+35 pts) -->
+          <div class="p-3 rounded-xl bg-white/5 border border-white/10">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-semibold text-white flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                <span>Academic Tier &amp; Stream</span>
+              </span>
+              <span class="font-mono font-bold text-emerald-400">+35 pts</span>
+            </div>
+            <p class="text-[11px] text-[#A1A1AA]">UG Engineering (B.Tech CSE) aligned with criteria gates.</p>
+          </div>
+
+          <!-- Factor 2: State / Domicile Match (+25 pts) -->
+          <div class="p-3 rounded-xl bg-white/5 border border-white/10">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-semibold text-white flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span>State &amp; Domicile Match</span>
+              </span>
+              <span class="font-mono font-bold text-emerald-400">+25 pts</span>
+            </div>
+            <p class="text-[11px] text-[#A1A1AA]">Delhi State Domicile clearance for state &amp; national schemes.</p>
+          </div>
+
+          <!-- Factor 3: Skill & Interest Overlap (+25 pts) -->
+          <div class="p-3 rounded-xl bg-white/5 border border-white/10">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-semibold text-white flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                <span>Skill &amp; Interest Overlap</span>
+              </span>
+              <span id="breakdown-skill-pts" class="font-mono font-bold text-emerald-400">+20 pts</span>
+            </div>
+            <p class="text-[11px] text-[#A1A1AA]">Overlap across Python, AI/ML, Cloud, Web Development.</p>
+          </div>
+
+          <!-- Factor 4: Eligibility Gate Clearance (+15 pts) -->
+          <div class="p-3 rounded-xl bg-white/5 border border-white/10">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-semibold text-white flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span>Eligibility Gate Clearance</span>
+              </span>
+              <span class="font-mono font-bold text-emerald-400">+15 pts</span>
+            </div>
+            <p class="text-[11px] text-[#A1A1AA]">Marks threshold (&gt;60%) &amp; Income criteria (&le; ₹8 LPA) cleared.</p>
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-between">
+          <div>
+            <p class="text-[10px] text-[#D4AF37] uppercase font-bold tracking-wider">Dynamic Total Match Score</p>
+            <p class="text-xs text-[#E0B84C]">Weighted aggregation across all 4 gates</p>
+          </div>
+          <span id="breakdown-total-score" class="text-xl font-bold font-mono text-[#D4AF37]">78%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SKILLS & INTERESTS EDIT MODAL ── -->
+    <div id="interests-modal-overlay" class="fixed inset-0 modal-backdrop hidden z-[100] flex items-center justify-center p-4" onclick="closeInterestsModal(event)">
+      <div class="glass-strong gold-top-accent w-full max-w-md p-6 shadow-2xl relative rounded-2xl" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] font-bold text-sm">
+              ✦
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-white">Edit Interests &amp; Skills</h3>
+              <p class="text-[10px] text-[#A1A1AA]">Click tags to toggle and re-score matching</p>
+            </div>
+          </div>
+          <button onclick="closeInterestsModal()" class="text-[#8E8678] hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">✕</button>
+        </div>
+
+        <div class="mb-4">
+          <p class="text-xs text-[#A1A1AA] mb-2.5">Select tags to customize recommendations:</p>
+          <div id="modal-interests-chips" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+            <!-- Populated dynamically via openInterestsModal() -->
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-3 border-t border-white/10">
+          <button onclick="closeInterestsModal()" class="flex-1 py-2 rounded-xl text-xs font-semibold text-[#A1A1AA] hover:text-white bg-white/5 border border-white/10 cursor-pointer">
+            Cancel
+          </button>
+          <button onclick="saveAndApplyInterests()" class="flex-1 btn-gold py-2 rounded-xl text-xs font-bold cursor-pointer">
+            Save &amp; Recalculate
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── OPPORTUNITY APPLICATION OPTIONS & LIVE LINKS MODAL ── -->
+    <div id="apply-options-modal-overlay" class="fixed inset-0 modal-backdrop hidden z-[100] flex items-center justify-center p-4" onclick="closeApplyOptionsModal(event)">
+      <div class="modal-card-ivory gold-top-accent w-full max-w-lg p-6 sm:p-7 shadow-2xl relative rounded-2xl" style="background-color: #FFFDF9 !important; background: #FFFDF9 !important; opacity: 1 !important;" onclick="event.stopPropagation()">
+        <div class="flex items-center justify-between pb-3.5 border-b border-[#E8E2D8] mb-4">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center text-[#B8962E] font-bold text-sm shadow-2xs">
+              ↗
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-[#181B28]">Application Options &amp; Live Links</h3>
+              <p class="text-[11px] text-[#6B7280]">Direct verified links to submit your application</p>
+            </div>
+          </div>
+          <button onclick="closeApplyOptionsModal()" class="text-[#8E8678] hover:text-[#181B28] transition-colors p-1 rounded-lg hover:bg-black/5 text-sm font-bold cursor-pointer" title="Close">✕</button>
+        </div>
+
+        <div id="apply-options-modal-body">
+          <!-- Populated dynamically via openApplyOptionsModal(oppId) -->
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Application Logic & API Client -->
+  <script src="js/app.js?v=2.5"></script>
+</body>
+</html>

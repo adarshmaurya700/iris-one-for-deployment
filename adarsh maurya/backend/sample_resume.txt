@@ -1,0 +1,21 @@
+ADARSH MAURYA
+B.Tech Computer Science (1st Year) · GGSIPU USAR, Delhi
+Age 19 | Delhi, India | student@usar.ac.in
+
+EDUCATION
+B.Tech CSE, Guru Gobind Singh Indraprastha University — University School of Automation & Robotics (USAR)
+CGPA / Class 12: 86% (CBSE)
+
+SKILLS
+Python, React, FastAPI, JavaScript, AI/ML, Product Design, UI/UX, Git, Cloud
+
+INTERESTS
+Technology, Scholarships, Hackathons, Free Developer Tools, Internships
+
+PROJECTS
+- Opportunity matcher prototype using FastAPI and Gemini structured extraction
+- Personal dashboard UI for student grants and hackathons
+
+ELIGIBILITY NOTES
+Domicile: Delhi
+Family income: eligible (under typical 8 LPA scholarship caps)
