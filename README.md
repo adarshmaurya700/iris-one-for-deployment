@@ -5,8 +5,7 @@
 
 [![TinyFish Live Integration](https://img.shields.io/badge/TinyFish-Live%20Agent%20Verified-blue.svg)](https://tinyfish.ai)
 [![Gemini 2.5 Flash](https://img.shields.io/badge/Gemini%202.5%20Flash-RAG%20Audited-purple.svg)](https://ai.google.dev/)
-[![FastAPI Production](https://img.shields.io/badge/FastAPI-Production%20WAL-emerald.svg)](https://fastapi.tiangolo.com)
-[![Pass 27/27 Tests](https://img.shields.io/badge/Tests-27%2F27%20Passing%20(100%25)-brightgreen.svg)](file:///backend/test_backend.py)
+
 
 ---
 
