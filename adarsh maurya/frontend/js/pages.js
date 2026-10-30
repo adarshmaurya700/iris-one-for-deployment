@@ -137,7 +137,7 @@
           <div class="flex items-center gap-1.5">
             <button type="button" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[#111625] text-white hover:bg-[#1E60D5] transition-all cursor-pointer"
                     onclick="event.stopPropagation(); openApplyOptionsModal('${id}')">Apply options ↗</button>
-            <button type="button" class="${btn}" onclick="event.stopPropagation(); openDetailDrawer('${id}')" aria-label="View details">
+            <button type="button" class="${btn}" onclick="event.stopPropagation(); openApplyOptionsModal('${id}')" aria-label="View details">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </button>
           </div>
