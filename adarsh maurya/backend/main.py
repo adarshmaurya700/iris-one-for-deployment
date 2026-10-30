@@ -152,6 +152,9 @@ resume_rate_limiter = SlidingWindowRateLimiter(
     scope="Resume analysis upload rate limit",
 )
 
+chat_rate_limiter = SlidingWindowRateLimiter(
+    max_requests=30, window_seconds=600, scope="AI assistant rate limit"
+)
 
 # ---------------------------------------------------------------------------
 # Pydantic Schemas
@@ -1107,27 +1110,19 @@ class AssistantChatRequest(BaseModel):
     active_opportunity_id: Optional[str] = None
 
 
-@app.post("/api/assistant/chat", dependencies=[Depends(ai_rate_limiter.check)])
+@app.post("/api/assistant/chat", dependencies=[Depends(chat_rate_limiter.check)])
 async def assistant_chat_endpoint(
     req: AssistantChatRequest,
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """
-    Context-aware Ask Iris AI Assistant powered by Gemini 2.5 Flash and SQLite RAG.
-    Advises on policy conflicts, drafts SOPs, audits eligibility documents,
-    and performs agentic live web discovery on URLs or search requests.
-    """
-    profile = req.student_profile
-    if not profile and current_user:
-        profile = current_user
-
-    result = await process_assistant_chat(
+    return await process_assistant_chat(
         message=req.message,
         history=req.history,
-        student_profile=profile,
+        student_profile=req.student_profile,
         active_opportunity_id=req.active_opportunity_id,
         db=db,
+        current_user=current_user,
     )
     return result
 

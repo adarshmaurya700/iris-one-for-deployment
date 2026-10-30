@@ -3389,18 +3389,25 @@
       active_opportunity_id: state.aiActiveOpportunityId || null,
     };
 
-    let replyData = null;
+        let replyData = null;
     try {
-      const res = await fetch(`${CONFIG.API_BASE}/api/assistant/chat`, {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 45000);
+      const res = await fetch(`${CONFIG.API_BASE_URL}/assistant/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(state.token ? { 'Authorization': `Bearer ${state.token}` } : {})
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timer);
       if (res.ok) {
         replyData = await res.json();
+      } else if (res.status === 429) {
+        const e = await res.json().catch(() => ({}));
+        replyData = { reply: e.detail || 'You are sending messages too quickly. Please wait a moment.' };
       }
     } catch (e) {
       console.warn('Assistant API call failed, using graceful fallback:', e);
