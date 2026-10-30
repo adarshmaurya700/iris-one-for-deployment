@@ -19,9 +19,11 @@ from fastapi import FastAPI, Depends, HTTPException, Query, status, UploadFile, 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from database import init_db, get_db, row_to_dict, rows_to_list, find_opportunity, DB_PATH
+from database import init_db, get_db, db_session, row_to_dict, rows_to_list, find_opportunity, DB_PATH
+from application_service import get_student_profile, student_identity, save_student_profile
+from catalog import today_in_india
 from seed_data import seed_opportunities, upsert_opportunity
 from matcher import calculate_match, score_catalog, parse_eligibility, eligibility_checklist, detect_conflicts
 from auth import (
@@ -45,7 +47,7 @@ from scheduler import (
     get_scheduler_status,
     refresh_opportunity_catalog,
 )
-from ai_assistant import process_assistant_chat
+from legacy_ai_assistant import process_assistant_chat
 
 # ---------------------------------------------------------------------------
 # Lifespan: DB initialization, auto-seeding & Background Cron Scheduler
@@ -62,9 +64,10 @@ async def lifespan(app: FastAPI):
 
     # Start the automated background cron scheduler (parse once, cache globally)
     start_scheduler()
-    yield
-    # Gracefully terminate background scheduler on shutdown
-    stop_scheduler()
+    try:
+        yield
+    finally:
+        stop_scheduler()
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +79,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+from api_extensions import router as application_router
+app.include_router(application_router)
 
 # Security Headers Middleware
 @app.middleware("http")
@@ -191,13 +196,16 @@ class ProfileUpdate(BaseModel):
     skills: Optional[str] = None
     domains: Optional[str] = None
     telegram_chat_id: Optional[str] = None
+    class_12_pct: Optional[float] = Field(default=None, ge=0, le=100)
+    family_income_inr: Optional[int] = Field(default=None, ge=0)
+    nirf_top_50: Optional[bool] = None
 
 
 # ---------------------------------------------------------------------------
 # Auth Routes (/api/auth)
 # ---------------------------------------------------------------------------
 @app.post("/api/auth/signup", status_code=status.HTTP_201_CREATED)
-def signup(data: UserSignup, db: sqlite3.Connection = Depends(get_db)):
+def signup(data: UserSignup, db: sqlite3.Connection = Depends(db_session)):
     """Creates a new student user, hashes password, and returns a JWT token."""
     cursor = db.cursor()
     cursor.execute("SELECT id FROM users WHERE LOWER(email) = LOWER(?)", (data.email.strip(),))
@@ -243,7 +251,7 @@ def signup(data: UserSignup, db: sqlite3.Connection = Depends(get_db)):
 
 
 @app.post("/api/auth/login")
-def login(data: UserLogin, db: sqlite3.Connection = Depends(get_db)):
+def login(data: UserLogin, db: sqlite3.Connection = Depends(db_session)):
     """Verifies user credentials and returns a JWT access token."""
     cursor = db.cursor()
     cursor.execute("SELECT * FROM users WHERE LOWER(email) = LOWER(?)", (data.email.strip(),))
@@ -282,7 +290,7 @@ def get_me(current_user: Dict[str, Any] = Depends(get_current_user)):
 def update_profile(
     data: ProfileUpdate,
     current_user: Dict[str, Any] = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """Updates profile attributes (name, college, age, state, country, skills, domains)."""
     user_id = current_user["id"]
@@ -326,6 +334,9 @@ def update_profile(
     updated_user = row_to_dict(cursor.fetchone())
     if updated_user and "password_hash" in updated_user:
         del updated_user["password_hash"]
+    if updated_user:
+        saved_profile = save_student_profile(db, student_identity(updated_user), {**updated_user, **data.model_dump(exclude_none=True)})
+        updated_user['student_profile'] = saved_profile
 
     return updated_user
 
@@ -334,7 +345,7 @@ def update_profile(
 # Health & Production Admin Routes (/api/health, /api/admin)
 # ---------------------------------------------------------------------------
 @app.get("/api/health")
-def health_check(db: sqlite3.Connection = Depends(get_db)):
+def health_check(db: sqlite3.Connection = Depends(db_session)):
     """
     Production health check returning connection status, DB path,
     opportunity metrics, user counts, and background scheduler telemetry.
@@ -364,7 +375,7 @@ def health_check(db: sqlite3.Connection = Depends(get_db)):
 
 
 @app.post("/api/admin/refresh-catalog")
-def admin_refresh_catalog(db: sqlite3.Connection = Depends(get_db)):
+def admin_refresh_catalog(db: sqlite3.Connection = Depends(db_session)):
     """
     Admin endpoint to trigger immediate catalog re-audit, pruning expired
     deadlines and updating verified statuses.
@@ -385,19 +396,19 @@ def list_opportunities(
     search: Optional[str] = Query(None, description="Search query across title, org, tags"),
     sort: Optional[str] = Query("match", description="Sort by 'match' (default) or 'deadline'"),
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """
     List all opportunities with match scores computed for the user.
     Supports filtering by category/type and search keyword, and sorting by match score or deadline.
     """
     cursor = db.cursor()
-    query_parts = ["SELECT * FROM opportunities WHERE 1=1"]
-    params: List[Any] = []
+    query_parts = ["SELECT * FROM opportunities WHERE is_verified_active = 1 AND (deadline_iso = '' OR deadline_iso >= ?)"]
+    params: List[Any] = [today_in_india().isoformat()]
 
     if category:
-        query_parts.append("AND LOWER(type) = LOWER(?)")
-        params.append(category.strip())
+        query_parts.append("AND (LOWER(type) = LOWER(?) OR LOWER(category) = LOWER(?))")
+        params.extend([category.strip(), category.strip()])
 
     if search:
         s = f"%{search.strip().lower()}%"
@@ -420,7 +431,8 @@ def list_opportunities(
         s_cursor.execute("SELECT opportunity_id FROM applications WHERE user_id = ?", (current_user["id"],))
         applied_ids = {r[0] for r in s_cursor.fetchall()}
 
-    opps = score_catalog(current_user, opps, saved_ids)
+    profile = get_student_profile(db, student_identity(current_user), current_user)
+    opps = score_catalog(profile, opps, saved_ids)
     for opp in opps:
         public_id = opp.get("slug") or opp["id"]
         opp["db_id"] = opp["id"]
@@ -455,7 +467,7 @@ async def web_search_route(q: str = Query(..., min_length=3, max_length=120)):
 def get_opportunity(
     opportunity_id: str,
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """Returns single opportunity details with complete match breakdown."""
     opp = find_opportunity(db, opportunity_id)
@@ -466,7 +478,8 @@ def get_opportunity(
         )
     opportunity_id = opp["id"]
     cursor = db.cursor()
-    match_info = calculate_match(current_user, opp)
+    profile = get_student_profile(db, student_identity(current_user), current_user)
+    match_info = calculate_match(profile, opp)
     opp["match"] = match_info
     opp["match_score"] = match_info["overall"]
 
@@ -503,7 +516,7 @@ def get_opportunity(
 def save_opportunity(
     opportunity_id: str,
     current_user: Dict[str, Any] = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """Save or bookmark an opportunity for the logged-in student."""
     opp = find_opportunity(db, opportunity_id)
@@ -533,7 +546,7 @@ def save_opportunity(
 def remove_saved_opportunity(
     opportunity_id: str,
     current_user: Dict[str, Any] = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """Remove an opportunity bookmark for the logged-in student."""
     opp = find_opportunity(db, opportunity_id)
@@ -562,7 +575,7 @@ def remove_saved_opportunity(
 @app.get("/api/saved")
 def list_saved_opportunities(
     current_user: Dict[str, Any] = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """List all opportunities bookmarked by the authenticated student with match scores."""
     cursor = db.cursor()
@@ -601,7 +614,7 @@ def list_saved_opportunities(
 def track_application(
     opportunity_id: str,
     current_user: Dict[str, Any] = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """Track an applied opportunity for the current student."""
     opp = find_opportunity(db, opportunity_id)
@@ -630,7 +643,7 @@ def track_application(
 @app.get("/api/applications")
 def list_applications(
     current_user: Dict[str, Any] = Depends(get_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """List all applications submitted by the current user."""
     cursor = db.cursor()
@@ -664,7 +677,7 @@ def list_applications(
 @app.get("/api/dashboard/stats")
 def get_dashboard_stats(
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """
     Return dashboard stats:
@@ -716,7 +729,7 @@ def get_dashboard_stats(
 
 
 @app.get("/api/categories")
-def get_categories(db: sqlite3.Connection = Depends(get_db)):
+def get_categories(db: sqlite3.Connection = Depends(db_session)):
     """Return category counts with icons and display names: [{name, count, emoji}]."""
     category_definitions = [
         {"type": "scholarship", "name": "Scholarships", "emoji": "🎓"},
@@ -750,7 +763,7 @@ def get_categories(db: sqlite3.Connection = Depends(get_db)):
 @app.get("/api/deadlines")
 def get_upcoming_deadlines(
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """Return opportunities sorted by deadline date with computed days_left."""
     cursor = db.cursor()
@@ -787,7 +800,7 @@ def get_upcoming_deadlines(
 def search_opportunities(
     q: str = Query("", description="Full text search query"),
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """Full-text search across title, organization, description, and tags."""
     cursor = db.cursor()
@@ -878,67 +891,33 @@ class VerifyOpportunityRequest(BaseModel):
     title: Optional[str] = ""
     provider: Optional[str] = ""
     user_profile: Optional[Dict[str, Any]] = None
-    live_agent: Optional[bool] = False
+    live_agent: Optional[bool] = True
 
 
 @app.post("/api/verify-opportunity", dependencies=[Depends(ai_rate_limiter.check)])
 async def verify_opportunity_endpoint(
     req: VerifyOpportunityRequest,
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """
     Two-Filter Opportunity Verification Engine:
       Filter 1: TinyFish Ingestion (TinySearch -> TinyFetch -> TinyAgent Mako)
       Filter 2: Gemini 2.5 Flash Structured Validation & Profile Cross-Check
     """
-    title = req.title or ""
-    provider = req.provider or ""
-    opp_id_str = str(req.opportunity_id) if req.opportunity_id else "reliance"
-
-    # If title/provider omitted, look up from DB
-    if not title or not provider:
-        cursor = db.cursor()
-        cursor.execute(
-            "SELECT title, organization FROM opportunities WHERE id = ? OR CAST(id AS TEXT) = ?",
-            (req.opportunity_id, opp_id_str),
-        )
-        row = cursor.fetchone()
-        if row:
-            title = title or row[0]
-            provider = provider or row[1]
-
-    # Resolve student profile
-    profile = req.user_profile
-    if not profile and current_user:
-        profile = {
-            "name": current_user.get("name", "Adarsh Maurya"),
-            "college": current_user.get("college", "B.Tech CSE, 1st Year"),
-            "university": current_user.get("university", "USAR"),
-            "age": current_user.get("age", 19),
-            "city": current_user.get("city", "Delhi"),
-            "state": current_user.get("state", "Delhi"),
-            "country": current_user.get("country", "India"),
-            "skills": current_user.get("skills", ["Python", "JavaScript", "React"]),
-            "domains": current_user.get("domains", ["Technology", "Engineering"]),
-        }
-
-    use_live_agent = req.live_agent if req.live_agent is not None else True
-    result = await run_verification_pipeline(
-        opportunity_id=opp_id_str,
-        title=title or "Student Opportunity",
-        provider=provider or "Official Portal",
-        user_profile=profile,
-        live_agent=use_live_agent,
-    )
-    return result
+    from verification import verify_and_store
+    opp = find_opportunity(db, req.opportunity_id or 'reliance')
+    if not opp:
+        raise HTTPException(404, 'Opportunity not found.')
+    profile = get_student_profile(db, student_identity(current_user), current_user)
+    return await verify_and_store(db, opp['title'], opp, live=bool(req.live_agent), profile=profile)
 
 
 @app.get("/api/verify-opportunity/{opportunity_id}")
 async def verify_opportunity_get(
     opportunity_id: str,
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """GET shortcut for live opportunity verification."""
     req = VerifyOpportunityRequest(opportunity_id=opportunity_id)
@@ -954,7 +933,7 @@ async def analyze_resume_endpoint(
     file: Optional[UploadFile] = File(None),
     use_sample: Optional[bool] = Form(None),
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """
     Analyzes resume (.pdf, .docx, .txt) or sample_resume.txt.
@@ -1011,6 +990,11 @@ async def analyze_resume_endpoint(
         raw_text = load_sample_resume_text()
 
     profile = await analyze_resume_bytes(filename=filename, data=data, raw_text=raw_text)
+    identity = student_identity(current_user)
+    if raw_text is None and data:
+        from resume_analyzer import extract_text_from_bytes
+        raw_text = extract_text_from_bytes(filename, data)
+    save_student_profile(db, identity, profile, resume_text=raw_text or '')
 
     if current_user and db:
         try:
@@ -1039,7 +1023,7 @@ class MatchRequest(BaseModel):
 async def match_opportunities_endpoint(
     req: MatchRequest = Body(default_factory=MatchRequest),
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """
     Calculates match scores, breakdown percentages, eligibility checklists,
@@ -1052,6 +1036,8 @@ async def match_opportunities_endpoint(
     profile = req.user_profile
     if not profile and current_user:
         profile = current_user
+    if not profile:
+        profile = get_student_profile(db)
 
     saved_ids = set()
     if current_user:
@@ -1085,37 +1071,26 @@ class DiscoverVerifyRequest(BaseModel):
     query: Optional[str] = None
     query_or_url: Optional[str] = None
     user_profile: Optional[Dict[str, Any]] = None
-    live_agent: Optional[bool] = False
+    live_agent: Optional[bool] = True
 
 
 @app.post("/api/opportunities/discover-and-verify", dependencies=[Depends(ai_rate_limiter.check)])
 async def discover_and_verify_endpoint(
     req: DiscoverVerifyRequest,
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """
     Stage A (TinySearch) -> Stage B (TinyFetch) -> Stage C (TinyAgent Mako) -> Filter 2 (Gemini 2.5 Flash).
     Extracts structured VerifiedOpportunity and upserts into SQLite opportunities table.
     Rate-limited to 10 requests per 10 minutes per IP.
     """
-    target = req.query_or_url or req.query or "Bharti Airtel Scholarship"
-    profile = req.user_profile or (current_user if current_user else None)
-    use_live_agent = req.live_agent if req.live_agent is not None else True
-    result = await discover_and_verify(target, user_profile=profile, live_agent=use_live_agent)
-
-    verified = result.get("verified_opportunity")
-    if verified and db:
-        try:
-            db_row = verified_to_db_row(verified)
-            action = upsert_opportunity(db, db_row)
-            db.commit()
-            result["db_action"] = action
-            result["opportunity"] = db_row
-        except Exception as e:
-            print("Failed to upsert verified opportunity:", e)
-
-    return result
+    from verification import verify_and_store
+    target = req.query_or_url or req.query or 'Bharti Airtel Scholarship'
+    cursor = db.execute('SELECT * FROM opportunities WHERE LOWER(title) LIKE LOWER(?) OR url = ? OR apply_url = ? LIMIT 1', ('%' + target + '%', target, target))
+    row = cursor.fetchone()
+    profile = get_student_profile(db, student_identity(current_user), current_user)
+    return await verify_and_store(db, target, dict(row) if row else None, live=bool(req.live_agent), profile=profile)
 
 
 # ---------------------------------------------------------------------------
@@ -1132,9 +1107,9 @@ class AssistantChatRequest(BaseModel):
 async def assistant_chat_endpoint(
     req: AssistantChatRequest,
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
-    return await process_assistant_chat(
+    result = await process_assistant_chat(
         message=req.message,
         history=req.history,
         student_profile=req.student_profile,
@@ -1142,6 +1117,11 @@ async def assistant_chat_endpoint(
         db=db,
         current_user=current_user,
     )
+    from ai_assistant import DEFAULT_QUICK_PROMPTS, ask_local_cache
+    if result.get('mode') == 'fallback':
+        local = await ask_local_cache(req.message, student_identity(current_user), db, req.active_opportunity_id, current_user)
+        result.update(local, reply=local['answer'], suggested_opportunities=local['matched_opportunities'][:2])
+    result.setdefault('quick_prompts', DEFAULT_QUICK_PROMPTS)
     return result
 
 
@@ -1151,7 +1131,7 @@ async def assistant_chat_endpoint(
 @app.get("/api/opportunities/{opportunity_id}/ics")
 def generate_opportunity_ics(
     opportunity_id: str,
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """
     Generates a valid RFC 5545 iCalendar (.ics) file using the opportunity's real deadline date
@@ -1226,7 +1206,7 @@ END:VCALENDAR
 @app.get("/api/users/{user_id}/calendar.ics")
 def generate_user_calendar_ics(
     user_id: int,
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """
     Subscribable Webcal feed (.ics) for all saved opportunities of a student.
@@ -1326,7 +1306,7 @@ class TelegramAlertRequest(BaseModel):
 async def send_telegram_alert(
     req: TelegramAlertRequest = Body(default_factory=TelegramAlertRequest),
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(get_db),
+    db: sqlite3.Connection = Depends(db_session),
 ):
     """
     Dispatches a real or simulated Telegram deadline alert for students.

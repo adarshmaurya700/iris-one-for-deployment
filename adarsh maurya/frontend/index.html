@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -23,37 +23,13 @@
   <meta name="twitter:description" content="AI-powered opportunity intelligence and 2-filter verification engine for scholarships, internships, competitions, and grants." />
   <meta name="twitter:image" content="/banner_exact.png" />
 
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-            serif: ['Playfair Display', 'Georgia', 'serif'],
-            script: ['Caveat', 'cursive'],
-            ui: ['Plus Jakarta Sans', 'Inter', 'sans-serif']
-          },
-          colors: {
-            irisDark: '#0A090F',
-            irisGold: '#D4AF37',
-            irisGoldDark: '#B8962E',
-            irisOrange: '#E58929',
-            irisPurple: '#7C3AED',
-            irisPurpleLight: '#A78BFA',
-            irisSecondary: '#A1A1AA',
-            irisMuted: '#6B6B7B'
-          }
-        }
-      }
-    };
-  </script>
+  <!-- Compiled locally so the interface also works without the Tailwind CDN. -->
+  <link rel="stylesheet" href="css/tailwind.css" />
 
   <!-- Google Fonts: Inter, Playfair Display, Fraunces, Caveat, Plus Jakarta Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,400&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,400&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
 
   <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="css/styles.css?v=2.6" />
@@ -615,213 +591,84 @@
         <!-- Scrollable Main Center Area -->
         <main class="flex-1 overflow-y-auto px-10 py-10 space-y-14" style="background-color: var(--bg-canvas);">
 
-          <!-- 1. WELCOME BANNER (Exact Match to Reference Screenshot + Personal OS Ambience Studio ) -->
-          <div id="dashboard-welcome-banner" class="rounded-2xl p-8 sm:p-12 relative anim-fade-up overflow-hidden shadow-sm flex flex-col justify-between" style="background: url('assets/hero_desk_bg_clean.png') center right / cover no-repeat; min-height: 320px;">
-            
-            <!-- Personal OS Theme / Wallpaper Switcher Button -->
-            <button onclick="openBannerStudioModal()" class="absolute top-3.5 right-3.5 z-20 px-2.5 py-1.5 rounded-xl bg-white/85 hover:bg-white text-xs text-[#181B28] border border-[#E5E0D8] shadow-sm flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-md group" title="Personalize Wall Banner, Focus OS & Widgets">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
-              <span class="text-[11px] font-semibold text-[#181B28]">Personal OS</span>
+          <!-- 1. HERO BANNER — Immersive split-screen welcome -->
+          <div id="dashboard-welcome-banner" class="hero-banner-split rounded-2xl relative anim-fade-up overflow-hidden shadow-sm" style="background: url('assets/hero_desk_bg_clean.png') center right / cover no-repeat; min-height: 260px;">
+            <!-- Gradient overlay for text legibility -->
+            <div class="hero-banner-overlay"></div>
+
+            <!-- Personal OS Theme Switcher -->
+            <button onclick="openBannerStudioModal()" class="absolute top-3.5 right-3.5 z-20 px-2.5 py-1.5 rounded-xl bg-white/85 hover:bg-white text-xs text-[#181B28] border border-[#E5E0D8] shadow-sm flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-md" title="Personalize Wall Banner">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span class="text-[11px] font-semibold">Personal OS</span>
               <span class="text-[9px] bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#B8962E] px-1 rounded font-mono font-bold">Theme</span>
             </button>
 
-            <div class="relative z-10 max-w-lg">
-              <p id="welcome-greeting-text" class="text-xs sm:text-sm text-[#4B5563] mb-1 font-semibold flex items-center gap-1.5">
+            <!-- LEFT: Headline & CTA -->
+            <div class="hero-banner-left relative z-10">
+              <p id="welcome-greeting-text" class="text-xs text-[#4B5563] mb-2 font-semibold flex items-center gap-1.5">
                 <span>Good morning,</span>
                 <span id="welcome-user-firstname" class="font-bold text-[#111827]">Adarsh</span>
                 <span>☼</span>
               </p>
-              <h1 id="welcome-banner-headline" class="text-xl sm:text-2xl font-extrabold tracking-tight mb-1.5 text-[#111827]">
-                Your next opportunity is closer than you think.
+              <h1 id="welcome-banner-headline" class="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2 text-[#111827] leading-tight">
+                Your next opportunity<br class="hidden sm:block"/>is closer than you think.
               </h1>
-              
-              <!-- Personal Focus Motto (Clickable to customize) -->
-              <p id="welcome-user-motto" class="text-xs sm:text-sm text-[#4B5563] font-medium leading-relaxed max-w-md mb-8 group cursor-pointer flex items-baseline gap-1" onclick="openBannerStudioModal()" title="Click to customize your personal daily focus goal">
-                <span id="welcome-motto-text">We've found opportunities that match your profile, interests and goals — just for you.</span>
-                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-[#D4AF37] transition-opacity flex-shrink-0">✎</span>
+              <p id="welcome-user-motto" class="text-xs text-[#4B5563] font-medium leading-relaxed max-w-xs mb-5 cursor-pointer group flex items-baseline gap-1" onclick="openBannerStudioModal()">
+                <span id="welcome-motto-text">Opportunities matched to your profile, interests and goals — just for you.</span>
+                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-[#D4AF37] transition-opacity">✎</span>
               </p>
-
-              <!-- Floating Stats Capsule -->
-              <div class="banner-stats-capsule inline-flex items-center py-2 px-3.5 sm:px-4 rounded-2xl relative mb-7" id="stats-container">
-                <!-- Opportunity Metrics View -->
-                <div id="capsule-view-metrics" class="flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
-                  <!-- Match Score -->
-                  <div class="flex items-center gap-2 pr-3 border-r border-[#E8E2D8]">
-                    <div class="w-6 h-6 rounded-full border border-[#059669] flex items-center justify-center text-[10px] font-bold text-[#059669]">
-                      78%
-                    </div>
-                    <div>
-                      <p class="text-[9px] text-[#6B7280] font-medium leading-none">AI Match</p>
-                      <p id="stat-match-score" class="text-xs font-bold text-[#181B28] leading-tight">Strong</p>
-                    </div>
-                  </div>
-                  <!-- Saved -->
-                  <div class="flex items-center gap-1.5 pr-3 border-r border-[#E8E2D8] cursor-pointer hover:opacity-80 transition-opacity" onclick="handleNavClick(document.querySelector('.dash-sidebar-item[data-nav=\'saved\']'), 'saved')" title="View Saved">
-                    <span class="text-xs text-[#D4AF37]">🔖</span>
-                    <div>
-                      <p id="stat-saved-count" class="text-xs font-bold text-[#181B28] leading-none">3</p>
-                      <p class="text-[9px] text-[#6B7280] leading-tight">Saved</p>
-                    </div>
-                  </div>
-                  <!-- Applied -->
-                  <div class="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity" onclick="handleNavClick(document.querySelector('.dash-sidebar-item[data-nav=\'applications\']'), 'applications')" title="View Active Applications">
-                    <span class="text-xs text-[#1E60D5]">📋</span>
-                    <div>
-                      <p id="stat-applied-count" class="text-xs font-bold text-[#181B28] leading-none">5</p>
-                      <p class="text-[9px] text-[#6B7280] leading-tight">Applied</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <button onclick="handleExploreMyMatches()" class="btn-primary-blue text-xs sm:text-sm py-2 px-4 rounded-full font-semibold inline-flex items-center gap-2 shadow-sm cursor-pointer">
-                  <span>Explore my matches</span>
-                  <span class="text-sm font-bold">→</span>
+              <div class="flex flex-wrap items-center gap-2.5">
+                <button onclick="handleExploreMyMatches()" class="btn-primary-blue text-xs py-2 px-5 rounded-full font-semibold inline-flex items-center gap-2 shadow-sm cursor-pointer">
+                  <span>Explore my matches</span><span class="font-bold">→</span>
+                </button>
+                <button onclick="openBannerStudioModal()" class="px-4 py-2 rounded-full text-xs font-semibold bg-white/80 border border-[#E5E0D8] text-[#4B5563] hover:bg-white transition-all cursor-pointer">
+                  Customize
                 </button>
               </div>
             </div>
 
-            <!-- Right Script Wording: "Better Opportunities. A Brighter You." -->
-            <div id="banner-script-quote-container" class="absolute right-6 bottom-6 hidden lg:block pointer-events-none" style="display: none;">
-              <p id="banner-script-quote" class="font-script text-xl text-[#C89F55] tracking-wide" style="font-family: 'Caveat', cursive; font-size: 22px;">
-                Better Opportunities. A Brighter You.
-              </p>
-            </div>
-          </div>
-
-          <!-- OPPORTUNITY LIVE SCANNER BAR (TinyFish + Gemini Engine) -->
-          <div class="p-4 sm:p-4 rounded-xl bg-white border border-[#E8E2D8] flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shadow-sm">
-            <div class="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#FAF6F0] border border-[#E5E0D8] focus-within:border-[#1E60D5] transition-colors">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" class="flex-shrink-0">
-                <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input
-                id="scanner-query-input"
-                type="text"
-                placeholder="Enter opportunity URL (devfolio/buddy4study/etc.) or search query to discover & verify live on web..."
-                class="w-full bg-transparent text-xs text-[#181B28] placeholder-[#9CA3AF] focus:outline-none"
-                onkeydown="if(event.key === 'Enter') handleScanAndVerify()"
-              />
-            </div>
-            <button
-              id="scanner-verify-btn"
-              onclick="handleScanAndVerify()"
-              class="px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#D4AF37] to-[#B8962E] hover:from-[#E0B84C] hover:to-[#D4AF37] text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer whitespace-nowrap"
-            >
-              <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-              <span>Scan &amp; Verify</span>
-              <span class="text-[9px] px-1 py-0.2 rounded bg-black/20 font-mono font-bold">TinyFish</span>
-            </button>
-          </div>
-
-          <!-- 4. EXPLORE BY CATEGORY CARDS (Interactive Category Filter) -->
-          <div class="anim-fade-up">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="text-base font-semibold text-[#181B28]">Explore by category</h3>
-              <button onclick="filterByCategory('All', null)" class="text-xs text-[#1E60D5] hover:underline font-medium cursor-pointer">
-                All categories
-              </button>
-            </div>
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5" id="category-cards-grid">
-              <!-- 1: Scholarships (Active) -->
-              <div class="category-card active-cat" data-category="Scholarships" onclick="filterByCategory('Scholarships', this)">
-                <div class="cat-icon-container cat-icon-gold">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.8">
-                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 10 3 12 0v-5"/>
-                  </svg>
-                </div>
-                <div class="min-w-0">
-                  <p class="cat-title">Scholarships</p>
-                  <p class="cat-count">1.2k+ opportunities</p>
-                </div>
-              </div>
-
-              <!-- 2: Internships -->
-              <div class="category-card" data-category="Internships" onclick="filterByCategory('Internships', this)">
-                <div class="cat-icon-container cat-icon-purple">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
-                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-                  </svg>
-                </div>
-                <div class="min-w-0">
-                  <p class="cat-title">Internships</p>
-                  <p class="cat-count">3.4k+ opportunities</p>
-                </div>
-              </div>
-
-              <!-- 3: Competitions -->
-              <div class="category-card" data-category="Competitions" onclick="filterByCategory('Competitions', this)">
-                <div class="cat-icon-container cat-icon-purple">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
-                    <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/><path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h10c.55 0 1-.45 1-1v-1c0-.55-.45-1-1-1h-2c-.55 0-1-.45-1-1v-2.34"/><path d="M6 5h12v4a6 6 0 0 1-12 0V5z"/>
-                  </svg>
-                </div>
-                <div class="min-w-0">
-                  <p class="cat-title">Competitions</p>
-                  <p class="cat-count">1.1k+ opportunities</p>
-                </div>
-              </div>
-
-              <!-- 4: Student Offers -->
-              <div class="category-card" data-category="Student Offers" onclick="filterByCategory('Student Offers', this)">
-                <div class="cat-icon-container cat-icon-purple">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
-                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
-                  </svg>
-                </div>
-                <div class="min-w-0">
-                  <p class="cat-title">Student Offers</p>
-                  <p class="cat-count">600+ opportunities</p>
-                </div>
-              </div>
-
-              <!-- 5: International -->
-              <div class="category-card" data-category="International" onclick="filterByCategory('International', this)">
-                <div class="cat-icon-container cat-icon-purple">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
-                    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                  </svg>
-                </div>
-                <div class="min-w-0">
-                  <p class="cat-title">International</p>
-                  <p class="cat-count">800+ opportunities</p>
+            <!-- RIGHT: Stats panel -->
+            <div class="hero-banner-right relative z-10" id="stats-container">
+              <div class="hero-stats-panel">
+                <p class="text-[10px] font-bold text-[#6B7280] uppercase tracking-widest mb-3">Your Snapshot</p>
+                <div id="capsule-view-metrics" class="flex flex-col gap-3">
+                  <!-- AI Match -->
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-9 h-9 rounded-full border-2 border-[#059669] flex items-center justify-center text-[11px] font-bold text-[#059669] bg-[#D1FAE5]/40">78%</div>
+                      <div>
+                        <p class="text-[9px] text-[#6B7280] leading-none mb-0.5">AI Match Score</p>
+                        <p id="stat-match-score" class="text-xs font-bold text-[#111827]">Strong</p>
+                      </div>
+                    </div>
+                    <span class="text-[10px] font-semibold text-[#059669] bg-[#D1FAE5] px-2 py-0.5 rounded-full">Active</span>
+                  </div>
+                  <div class="h-px bg-[#E8E2D8]"></div>
+                  <!-- Quick stats row -->
+                  <div class="flex items-center justify-around">
+                    <div class="flex flex-col items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity" onclick="handleNavClick(document.querySelector('.dash-sidebar-item[data-nav=\'saved\']'), 'saved')">
+                      <div class="w-8 h-8 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-base">🔖</div>
+                      <p id="stat-saved-count" class="text-sm font-bold text-[#111827] leading-none">3</p>
+                      <p class="text-[10px] text-[#6B7280]">Saved</p>
+                    </div>
+                    <div class="flex flex-col items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity" onclick="handleNavClick(document.querySelector('.dash-sidebar-item[data-nav=\'applications\']'), 'applications')">
+                      <div class="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-base">📋</div>
+                      <p id="stat-applied-count" class="text-sm font-bold text-[#111827] leading-none">5</p>
+                      <p class="text-[10px] text-[#6B7280]">Applied</p>
+                    </div>
+                    <div class="flex flex-col items-center gap-1">
+                      <div class="w-8 h-8 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-base">⭐</div>
+                      <p class="text-sm font-bold text-[#111827] leading-none">17+</p>
+                      <p class="text-[10px] text-[#6B7280]">Matches</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-
-          <!-- 2. THREE METRIC STAT CARDS (Row below banner) -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <!-- Card 1: AI Match Score -->
-            <div class="metric-stat-card flex flex-col justify-between">
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-medium text-[#4B5563]">AI Match Score</span>
-                <span class="text-[10px] text-[#059669] bg-[#D1FAE5] px-1.5 py-0.5 rounded font-semibold">Active</span>
-              </div>
-              <div class="flex items-center gap-3.5 my-1">
-                <div class="relative w-12 h-12 flex items-center justify-center flex-shrink-0">
-                  <svg class="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
-                    <path class="text-[#E5E7EB]" stroke-width="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                    <path id="kpi-score-ring" class="text-[#059669] transition-all duration-700 ease-out" stroke-dasharray="78, 100" stroke-width="3" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  </svg>
-                  <span id="kpi-score-val" class="absolute inset-0 flex items-center justify-center font-bold text-xs text-[#059669]">78%</span>
-                </div>
-                <div>
-                  <p id="kpi-score-headline" class="text-xs font-semibold text-[#181B28]">You're a strong match!</p>
-                  <button type="button" onclick="openMatchBreakdownModal()" class="text-[11px] text-[#1E60D5] font-medium hover:underline inline-flex items-center gap-0.5 cursor-pointer">
-                    <span>View breakdown</span>
-                    <span class="text-xs">→</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card 2: Profile Completeness -->
+          <!-- 2. PROFILE COMPLETENESS CARD (Centered below banner) -->
+          <div class="grid grid-cols-1 gap-8 max-w-2xl mx-auto">
+            <!-- Card: Profile Completeness -->
             <div class="metric-stat-card flex flex-col justify-between">
               <div class="flex items-center justify-between mb-1.5">
                 <span class="text-xs font-medium text-[#4B5563]">Profile Completeness</span>
@@ -861,26 +708,114 @@
                 </button>
               </div>
             </div>
+          </div>
 
-            <!-- Card 3: Top Interests -->
-            <div class="metric-stat-card flex flex-col justify-between">
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-xs font-medium text-[#4B5563]">Top interests</span>
-                <button onclick="openInterestsModal()" class="text-[#6B7280] hover:text-[#181B28] text-xs transition-colors p-1 rounded hover:bg-black/5 cursor-pointer" title="Edit Interests &amp; Skills">
-                  ✎
-                </button>
+          </div>
+
+          <!-- 4. EXPLORE BY CATEGORY — Horizontal pill-scroll -->
+          <div class="anim-fade-up">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <div class="category-section-bar"></div>
+                <h3 class="text-sm font-bold text-[#181B28]">Explore by Category</h3>
               </div>
-              <div id="kpi-interests-container" class="flex flex-wrap gap-1.5 mt-1.5">
-                <span class="interest-pill">Technology</span>
-                <span class="interest-pill">Research</span>
-                <span class="interest-pill">Innovation</span>
-                <span class="interest-pill">Education</span>
-              </div>
+              <button onclick="filterByCategory('All', null)" class="text-xs text-[#1E60D5] hover:underline font-medium cursor-pointer flex items-center gap-1">
+                All categories
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+            <div class="category-pill-scroll" id="category-cards-grid">
+              <!-- Scholarships -->
+              <button class="cat-pill active-cat" data-category="Scholarships" onclick="filterByCategory('Scholarships', this)">
+                <div class="cat-pill-icon" style="background:rgba(212,175,55,0.12);">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.8"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 10 3 12 0v-5"/></svg>
+                </div>
+                <div class="cat-pill-label">
+                  <span class="cat-pill-title">Scholarships</span>
+                  <span class="cat-pill-count">1.2k+</span>
+                </div>
+              </button>
+              <!-- Internships -->
+              <button class="cat-pill" data-category="Internships" onclick="filterByCategory('Internships', this)">
+                <div class="cat-pill-icon" style="background:rgba(30,96,213,0.08);">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                </div>
+                <div class="cat-pill-label">
+                  <span class="cat-pill-title">Internships</span>
+                  <span class="cat-pill-count">3.4k+</span>
+                </div>
+              </button>
+              <!-- Jobs -->
+              <button class="cat-pill" data-category="Jobs" onclick="filterByCategory('Jobs', this)">
+                <div class="cat-pill-icon" style="background:rgba(16,185,129,0.08);">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </div>
+                <div class="cat-pill-label">
+                  <span class="cat-pill-title">Jobs</span>
+                  <span class="cat-pill-count">5.1k+</span>
+                </div>
+              </button>
+              <!-- Competitions -->
+              <button class="cat-pill" data-category="Competitions" onclick="filterByCategory('Competitions', this)">
+                <div class="cat-pill-icon" style="background:rgba(124,58,237,0.08);">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" stroke-width="1.8"><path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/><path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2"/><path d="M4 22h16"/><path d="M6 5h12v4a6 6 0 0 1-12 0V5z"/></svg>
+                </div>
+                <div class="cat-pill-label">
+                  <span class="cat-pill-title">Competitions</span>
+                  <span class="cat-pill-count">1.1k+</span>
+                </div>
+              </button>
+              <!-- Hackathons -->
+              <button class="cat-pill" data-category="Hackathons" onclick="filterByCategory('Hackathons', this)">
+                <div class="cat-pill-icon" style="background:rgba(239,68,68,0.08);">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="1.8"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                </div>
+                <div class="cat-pill-label">
+                  <span class="cat-pill-title">Hackathons</span>
+                  <span class="cat-pill-count">450+</span>
+                </div>
+              </button>
+              <!-- Student Offers -->
+              <button class="cat-pill" data-category="Student Offers" onclick="filterByCategory('Student Offers', this)">
+                <div class="cat-pill-icon" style="background:rgba(245,158,11,0.08);">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="1.8"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                </div>
+                <div class="cat-pill-label">
+                  <span class="cat-pill-title">Student Offers</span>
+                  <span class="cat-pill-count">600+</span>
+                </div>
+              </button>
+              <!-- International -->
+              <button class="cat-pill" data-category="International" onclick="filterByCategory('International', this)">
+                <div class="cat-pill-icon" style="background:rgba(14,165,233,0.08);">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </div>
+                <div class="cat-pill-label">
+                  <span class="cat-pill-title">International</span>
+                  <span class="cat-pill-count">800+</span>
+                </div>
+              </button>
             </div>
           </div>
 
           <!-- 3. RECOMMENDED FOR YOU (3 Pastel Cards & Feed Tabs) -->
           <div class="anim-fade-up">
+            <!-- Section Header with accent bar -->
+            <div class="section-header-row mb-4">
+              <div class="section-header-left">
+                <div class="section-accent-bar"></div>
+                <div>
+                  <h3 class="section-title">Recommended For You</h3>
+                  <p class="section-subtitle">Opportunities handpicked for your profile and academic goals.</p>
+                </div>
+              </div>
+              <div class="section-header-right">
+                <button id="view-all-recommended-btn" onclick="handleViewAllOpportunities()" class="view-all-btn cursor-pointer">
+                  <span id="view-all-recommended-text">View all</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
               <!-- Feed Tabs: Recommended Matches | Active Applications | Saved Bookmarks -->
               <div class="flex items-center gap-1.5 p-1 bg-white border border-[#E8E2D8] rounded-xl shadow-xs">
@@ -910,20 +845,7 @@
                 </button>
               </div>
 
-              <!-- Right Tools: High-Contrast Verify Live on Web (TinyFish) + View All -->
-              <div class="flex items-center gap-2">
-                <button
-                  onclick="openLiveVerificationDrawer('reliance')"
-                  class="btn-tinyfish-pill text-[11px] px-3 py-1.5 rounded-lg font-semibold flex items-center gap-2 transition-all shadow-sm cursor-pointer"
-                  title="Run Two-Filter TinyFish + Gemini live web verification engine"
-                >
-                  <span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
-                  </span>
-                  <span class="font-semibold text-[#F8FAFC]">Verify TinyFish</span>
-                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-[#D4AF37]/25 text-[#FDE047] font-mono font-bold">LIVE</span>
-                </button>
+              <div class="flex items-center">
                 <button id="view-all-recommended-btn" onclick="handleViewAllOpportunities()" class="text-xs text-[#1E60D5] hover:underline font-medium flex items-center gap-1 cursor-pointer py-1 px-1.5 rounded hover:bg-black/5 transition-colors">
                   <span id="view-all-recommended-text">View all</span>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -946,21 +868,79 @@
 
           <!-- 5. TRENDING THIS WEEK (4 cards across) -->
           <div class="anim-fade-up">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="text-base font-semibold flex items-center gap-1.5 text-[#181B28]">
-                <span>📈 Trending this week</span>
-              </h3>
-              <button onclick="handleViewAllOpportunities()" class="text-xs text-[#1E60D5] hover:underline font-medium flex items-center gap-1 cursor-pointer">
-                <span>View all</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-              </button>
+            <div class="section-header-row mb-4">
+              <div class="section-header-left">
+                <div class="section-accent-bar" style="background:#E58929;"></div>
+                <div>
+                  <h3 class="section-title">Trending This Week</h3>
+                  <p class="section-subtitle">Hot opportunities gaining traction right now.</p>
+                </div>
+              </div>
+              <div class="section-header-right">
+                <button onclick="handleViewAllOpportunities()" class="view-all-btn cursor-pointer">
+                  <span>View all</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
             </div>
 
             <!-- Trending 4 Cards Grid -->
             <div id="trending-cards-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-6">
               <!-- Dynamically populated via renderTrendingCards() in app.js -->
+            </div>
+          </div>
+
+          <!-- INTERNSHIPS HORIZONTAL SLIDER SECTION -->
+          <div class="anim-fade-up">
+            <div class="section-header-row mb-4">
+              <div class="section-header-left">
+                <div class="section-accent-bar" style="background:#1E60D5;"></div>
+                <div>
+                  <h3 class="section-title">Internships</h3>
+                  <p class="section-subtitle">Unleash internships tailored to your aspirations.</p>
+                </div>
+              </div>
+              <div class="section-header-right">
+                <button onclick="filterByCategory('Internships', document.querySelector('.cat-pill[data-category=Internships]'))" class="view-all-btn cursor-pointer">
+                  <span>View All</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="horizontal-slider-wrapper">
+              <div class="horizontal-slider" id="internships-slider">
+                <!-- Populated by renderInternshipsSlider() -->
+              </div>
+              <button class="slider-arrow slider-arrow-right" onclick="slideSection('internships-slider', 1)" aria-label="Scroll right">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- JOBS HORIZONTAL SLIDER SECTION -->
+          <div class="anim-fade-up">
+            <div class="section-header-row mb-4">
+              <div class="section-header-left">
+                <div class="section-accent-bar" style="background:#059669;"></div>
+                <div>
+                  <h3 class="section-title">Jobs</h3>
+                  <p class="section-subtitle">Unveil jobs designed for your next big move.</p>
+                </div>
+              </div>
+              <div class="section-header-right">
+                <button onclick="filterByCategory('Jobs', document.querySelector('.cat-pill[data-category=Jobs]'))" class="view-all-btn cursor-pointer">
+                  <span>View All</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="horizontal-slider-wrapper">
+              <div class="horizontal-slider" id="jobs-slider">
+                <!-- Populated by renderJobsSlider() -->
+              </div>
+              <button class="slider-arrow slider-arrow-right" onclick="slideSection('jobs-slider', 1)" aria-label="Scroll right">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
             </div>
           </div>
 
@@ -1382,7 +1362,7 @@
                 <h3 class="font-bold text-sm sm:text-base text-white truncate">✦ Ask Iris — Agentic Opportunity &amp; Eligibility Advisor</h3>
                 <span class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center gap-1.5 flex-shrink-0">
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Gemini 2.5 Flash + TinyFish Active
+                  Local catalog + optional free models
                 </span>
               </div>
               <p class="text-[10px] text-[#A1A1AA] truncate">Real-time eligibility checking, policy conflict analysis &amp; SOP drafting</p>
@@ -1430,8 +1410,8 @@
             <div class="glass p-3.5 rounded-2xl max-w-[90%] text-[#CBD5E1] leading-relaxed border border-white/10 space-y-1.5">
               <p class="font-bold text-white text-xs">Hello Adarsh! I'm Iris, your Opportunity Intelligence Co-pilot.</p>
               <p class="text-[11px] text-zinc-300">
-                I'm grounded in your <strong>B.Tech 1st Year (GGSIPU USAR, Delhi)</strong> profile and our <strong>26 live-verified opportunities</strong>.
-                I can check eligibility gates, analyze <strong>policy conflicts</strong> (like Bharti Airtel vs Delhi MCM), draft tailored <strong>Statements of Purpose (SOP)</strong>, or deploy <strong>TinyFish live web scanning</strong> for new grants.
+                I use your <strong>stored student profile</strong> and the <strong>local opportunity catalog</strong>.
+                I can explain eligibility, application steps, document checklists and <strong>policy conflicts</strong>, or help draft a <strong>Statement of Purpose (SOP)</strong>. Use Scan &amp; Verify to check new grants.
               </p>
               <p class="text-[10px] text-[#D4AF37] pt-1">Try one of the quick prompts above or ask any question!</p>
             </div>
@@ -1819,20 +1799,24 @@
 
     <!-- ── OPPORTUNITY APPLICATION OPTIONS & LIVE LINKS MODAL ── -->
     <div id="apply-options-modal-overlay" class="fixed inset-0 modal-backdrop hidden z-[100] flex items-center justify-center p-4" onclick="closeApplyOptionsModal(event)">
-      <div class="modal-card-ivory gold-top-accent w-full max-w-lg p-6 sm:p-7 shadow-2xl relative rounded-2xl" style="background-color: #FFFDF9 !important; background: #FFFDF9 !important; opacity: 1 !important;" onclick="event.stopPropagation()">
+      <div class="modal-card-ivory gold-top-accent w-full max-w-lg p-6 sm:p-7 shadow-2xl relative rounded-2xl" role="dialog" aria-modal="true" aria-labelledby="application-guide-title" style="background-color: #FFFDF9 !important; background: #FFFDF9 !important; opacity: 1 !important; max-height: 90vh; overflow-y: auto;" onclick="event.stopPropagation()">
         <div class="flex items-center justify-between pb-3.5 border-b border-[#E8E2D8] mb-4">
           <div class="flex items-center gap-2.5">
             <div class="w-8 h-8 rounded-lg bg-[#D4AF37]/15 border border-[#D4AF37]/40 flex items-center justify-center text-[#B8962E] font-bold text-sm shadow-2xs">
               ↗
             </div>
             <div>
-              <h3 class="font-bold text-sm text-[#181B28]">Application Options &amp; Live Links</h3>
-              <p class="text-[11px] text-[#6B7280]">Direct verified links to submit your application</p>
+              <h3 id="application-guide-title" class="font-bold text-sm text-[#181B28]">Application Options &amp; How to Apply</h3>
+              <p class="text-[11px] text-[#6B7280]">Official portals, application steps and document checklist</p>
             </div>
           </div>
           <button onclick="closeApplyOptionsModal()" class="text-[#8E8678] hover:text-[#181B28] transition-colors p-1 rounded-lg hover:bg-black/5 text-sm font-bold cursor-pointer" title="Close">✕</button>
         </div>
 
+        <div class="flex items-start justify-between gap-2 mb-4">
+          <p id="catalog-sync-status" class="text-[10px] text-[#6B7280]" role="status">Loading 12-hour sync status…</p>
+          <button onclick="triggerCatalogSync()" class="text-[10px] text-[#1E60D5] font-bold whitespace-nowrap cursor-pointer">Verify catalog ↻</button>
+        </div>
         <div id="apply-options-modal-body">
           <!-- Populated dynamically via openApplyOptionsModal(oppId) -->
         </div>

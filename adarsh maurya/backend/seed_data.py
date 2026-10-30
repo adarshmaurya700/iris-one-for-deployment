@@ -6,6 +6,8 @@ internships, competitions, free offers, events, and olympiads.
 
 import json
 import sqlite3
+from catalog import application_metadata
+from database import OPPORTUNITY_COLUMNS, update_embedding
 from typing import List, Dict, Any
 
 TITLE_SLUGS = {
@@ -34,6 +36,14 @@ def _gates(**kwargs) -> str:
 
 
 CORE_OPPORTUNITIES: List[Dict[str, Any]] = [
+    {
+        'slug': 'jai-2026', 'title': 'JAI 2026 — Jaypee Agentic AI Hackathon',
+        'organization': 'Jaypee Institute of Information Technology', 'type': 'competition',
+        'category': 'Hackathons', 'description': 'Catalog reference for the Jaypee Agentic AI Hackathon. Confirm the event page, dates and registration status with the organizer.',
+        'amount': 'See organizer terms', 'location': 'India', 'deadline': '',
+        'url': 'https://www.jiit.ac.in/', 'required_skills': 'Python, AI/ML, FastAPI',
+        'eligibility_json': _gates(academic_tiers=['UG', 'PG'], allowed_states=['All India']),
+    },
     {
         "slug": "airtel",
         "title": "Bharti Airtel Scholarship Program",
@@ -539,6 +549,16 @@ def _normalize_seed(opp: Dict[str, Any]) -> Dict[str, Any]:
         "eligibility_json": opp.get("eligibility_json") or "{}",
         "verification_log_json": opp.get("verification_log_json") or "[]",
     }
+    from matcher import compute_deterministic_embedding
+    row.update(application_metadata(row))
+    for key in OPPORTUNITY_COLUMNS:
+        if key in opp:
+            row[key] = opp[key]
+    row.setdefault('is_sponsored', 0)
+    row.setdefault('verification_status', 'SEEDED_CACHE')
+    row.setdefault('last_verified_at', '')
+    row.setdefault('last_checked_at', '')
+    row['embedding_json'] = json.dumps(compute_deterministic_embedding(' '.join(str(row.get(k) or '') for k in ('title', 'description', 'tags', 'required_skills'))))
     return row
 
 
@@ -551,19 +571,22 @@ def upsert_opportunity(db: sqlite3.Connection, opp: Dict[str, Any]) -> str:
         (row["slug"], row["title"]),
     )
     existing = cursor.fetchone()
-    values = tuple(row[c] for c in OPP_COLUMNS)
+    columns = list(dict.fromkeys(OPP_COLUMNS + list(OPPORTUNITY_COLUMNS)))
+    values = tuple(row[c] for c in columns)
     if existing:
-        assignments = ", ".join(f"{c} = ?" for c in OPP_COLUMNS)
+        assignments = ", ".join(f"{c} = ?" for c in columns)
         cursor.execute(
             f"UPDATE opportunities SET {assignments} WHERE id = ?",
             values + (existing[0],),
         )
+        update_embedding(db, existing[0], json.loads(row['embedding_json']))
         return "updated"
-    placeholders = ", ".join("?" for _ in OPP_COLUMNS)
+    placeholders = ", ".join("?" for _ in columns)
     cursor.execute(
-        f"INSERT INTO opportunities ({', '.join(OPP_COLUMNS)}) VALUES ({placeholders})",
+        f"INSERT INTO opportunities ({', '.join(columns)}) VALUES ({placeholders})",
         values,
     )
+    update_embedding(db, cursor.lastrowid, json.loads(row['embedding_json']))
     return "inserted"
 
 
@@ -574,6 +597,17 @@ def seed_opportunities(db: sqlite3.Connection) -> int:
     """
     changed = 0
     for opp in SEED_OPPORTUNITIES + CORE_OPPORTUNITIES:
+        row = _normalize_seed(opp)
+        existing = db.execute("SELECT * FROM opportunities WHERE slug = ? OR LOWER(title) = LOWER(?)", (row['slug'], row['title'])).fetchone()
+        if existing:
+            # Fill only missing application metadata; never reset a live scan or an expired status.
+            existing = dict(existing)
+            if not existing.get('how_to_apply_steps_json') or existing['how_to_apply_steps_json'] == '[]':
+                fields = list(application_metadata(row))
+                db.execute('UPDATE opportunities SET ' + ', '.join(f'{key} = ?' for key in fields) + ' WHERE id = ?', tuple(row[key] for key in fields) + (existing['id'],))
+            if not existing.get('embedding_json') or existing['embedding_json'] == '[]':
+                update_embedding(db, existing['id'], json.loads(row['embedding_json']))
+            continue
         result = upsert_opportunity(db, opp)
         if result == "inserted":
             changed += 1

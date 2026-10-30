@@ -18,9 +18,9 @@ import env_loader  # noqa: F401
 # Suppress pyjwt HMAC key length recommendation warning for the specified secret key
 warnings.filterwarnings("ignore", category=UserWarning, module="jwt")
 
-from database import get_db, row_to_dict
+from database import get_db, db_session, row_to_dict
 
-SECRET_KEY = os.environ.get("JWT_SECRET", "iris_one_secret_key_2026")
+SECRET_KEY = os.environ.get("JWT_SECRET") or "iris_one_secret_key_2026"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
@@ -101,7 +101,7 @@ def _extract_token_from_header(request: Request) -> Optional[str]:
     return None
 
 
-def get_current_user(request: Request, db: sqlite3.Connection = Depends(get_db)) -> Dict[str, Any]:
+def get_current_user(request: Request, db: sqlite3.Connection = Depends(db_session)) -> Dict[str, Any]:
     """
     Dependency that extracts the JWT token from the Authorization header,
     decodes it, and fetches the corresponding user from the database.
@@ -135,7 +135,7 @@ def get_current_user(request: Request, db: sqlite3.Connection = Depends(get_db))
     return user_dict
 
 
-def get_optional_current_user(request: Request, db: sqlite3.Connection = Depends(get_db)) -> Optional[Dict[str, Any]]:
+def get_optional_current_user(request: Request, db: sqlite3.Connection = Depends(db_session)) -> Optional[Dict[str, Any]]:
     """
     Dependency that attempts to extract and authenticate current user,
     but returns None instead of raising an error if unauthenticated.

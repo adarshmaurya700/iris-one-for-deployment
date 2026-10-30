@@ -877,7 +877,7 @@
       };
 
       try {
-        const isLongRunning = ['/resume/analyze', '/opportunities/discover-and-verify', '/verify-opportunity', '/opportunities/match', '/opportunities/web-search'].some(p => endpoint.includes(p));
+        const isLongRunning = ['/assistant/ask', '/resume/analyze', '/opportunities/discover-and-verify', '/verify-opportunity', '/opportunities/match', '/opportunities/web-search'].some(p => endpoint.includes(p));
         const timeoutMs = isLongRunning ? 60000 : 2500;
 
         const controller = new AbortController();
@@ -961,7 +961,7 @@
 
     async getOpportunities(params = '') {
       const data = await this.request(`/opportunities${params ? '?' + params : ''}`);
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         // Normalize backend data structure to frontend view structure
         return data.map(normalizeBackendOpp);
       }
@@ -1009,7 +1009,7 @@
   function normalizeBackendOpp(item) {
     const isSaved = state.savedOppIds.has(item.id) || item.is_saved;
     const isApplied = state.appliedOppIds.has(item.id) || item.is_applied;
-    const matchScore = item.match_score || (item.match && item.match.overall) || 85;
+    const matchScore = item.match_score ?? item.match?.overall ?? 0;
 
     let badgeClass = 'match-badge-green';
     if (matchScore < 90) badgeClass = 'match-badge-gold';
@@ -1039,11 +1039,14 @@
       typeColor: category === 'Scholarships' ? '#D4AF37' : (category === 'Internships' ? '#A78BFA' : '#10B981'),
       matchPct: Math.round(matchScore),
       matchBadgeClass: badgeClass,
-      status: 'Active',
+      isActive: item.is_verified_active !== 0,
+      status: item.verification_status || 'Cached',
+      verification_status: item.verification_status,
+      last_verified_at: item.last_verified_at,
       statusColor: '#10B981',
-      deadline: item.deadline || 'May 31, 2027',
-      deadlineIso: item.deadline || '2027-05-31',
-      amount: item.financial_value_label || item.amount || '₹ 2.6L per year',
+      deadline: item.deadline_iso || item.deadline || 'Check official portal',
+      deadlineIso: item.deadline_iso || item.deadline || '',
+      amount: item.benefit_summary || item.financial_value_label || item.amount || 'See official terms',
       location: item.location || 'PAN India',
       category: category,
       shortDesc: item.description || 'Verified student opportunity matched for your profile.',
@@ -1396,11 +1399,15 @@
   // SCREEN 3: DASHBOARD RENDERING & LOGIC
   // ══════════════════════════════════════════════════════════════════
   async function refreshDashboardData() {
+    state.opportunities = await api.getOpportunities();
+    await restoreTrackedApplications();
     updateUserDisplay();
     await Promise.all([
       loadDashboardStats(),
       renderRecommendedCards(),
       renderTrendingCards(),
+      renderInternshipsSlider(),
+      renderJobsSlider(),
       renderDeadlinesList()
     ]);
   }
@@ -1933,121 +1940,105 @@
     };
   }
 
-  function openApplyOptionsModal(oppId) {
-    const opp = state.opportunities.find(o => o.id === oppId || String(o.id) === String(oppId) || (o.slug && o.slug === oppId));
-    if (!opp) return;
+  let applyRequestVersion = 0;
+  let activeApplicationGuide = null;
+  const documentSaveTimers = new Map();
 
+  function escapeApplicationText(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+  }
+
+  function safeApplicationUrl(value) {
+    try {
+      const url = new URL(value);
+      return ['https:', 'http:'].includes(url.protocol) ? url.href : '#';
+    } catch { return '#'; }
+  }
+
+  async function openApplyOptionsModal(oppId) {
     const modal = document.getElementById('apply-options-modal-overlay');
     const container = document.getElementById('apply-options-modal-body');
     if (!modal || !container) return;
-
-    const urls = getApplyUrls(opp);
-    const isApplied = state.appliedOppIds.has(opp.id);
-    const logoMarkup = getBrandLogoMarkup(opp, 'w-11 h-11 rounded-xl');
-
-    container.innerHTML = `
-      <!-- Opportunity Summary Row -->
-      <div class="flex items-start gap-3.5 pb-3.5 border-b border-[#E8E2D8] mb-4">
-        ${logoMarkup}
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#D4AF37]/15 text-[#92400E] border border-[#D4AF37]/30">${opp.type || 'Scholarship'}</span>
-            <span class="match-badge-green text-[10px] font-semibold">${opp.matchPct || 92}% Match</span>
-          </div>
-          <h3 class="text-sm font-bold text-[#181B28] leading-snug line-clamp-2">${opp.title}</h3>
-          <p class="text-[11px] text-[#4B5563] mt-0.5 font-medium">${opp.provider || 'Verified Partner'} · <span class="text-[#B8962E] font-bold">${opp.amount || 'Benefits Included'}</span></p>
-        </div>
-      </div>
-
-      <!-- Verified Live Channels Container -->
-      <div class="mb-4">
-        <p class="text-[11px] font-bold text-[#92400E] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Verified Live Application Channels</span>
-        </p>
-        <div class="space-y-2.5">
-          <!-- Channel 1: Primary Official Portal -->
-          <a
-            href="${urls.officialUrl}"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="p-3 rounded-xl bg-gradient-to-r from-[#FFF8E7] to-[#FEF3C7] border border-[#D4AF37]/70 hover:border-[#B8962E] flex items-center justify-between text-[#181B28] transition-all group no-underline shadow-xs cursor-pointer hover:shadow-sm"
-          >
-            <div class="flex items-center gap-2.5 min-w-0 pr-2">
-              <div class="w-8 h-8 rounded-lg bg-[#D4AF37] text-black font-extrabold flex items-center justify-center text-sm shadow-xs flex-shrink-0">
-                1
-              </div>
-              <div class="min-w-0">
-                <p class="text-xs font-bold text-[#181B28] group-hover:text-[#B8962E] transition-colors truncate">${urls.officialLabel}</p>
-                <p class="text-[10px] text-[#6B7280] truncate font-mono">${urls.officialUrl}</p>
-              </div>
-            </div>
-            <span class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-[#D4AF37] text-black group-hover:brightness-105 flex items-center gap-1 flex-shrink-0 shadow-xs">
-              Apply Live ↗
-            </span>
-          </a>
-
-          <!-- Channel 2: Partner / Alternate Portal -->
-          <a
-            href="${urls.partnerUrl}"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="p-3 rounded-xl bg-[#F0F7FF] border border-[#BFDBFE] hover:border-[#60A5FA] flex items-center justify-between text-[#181B28] transition-all group no-underline shadow-xs cursor-pointer hover:shadow-sm"
-          >
-            <div class="flex items-center gap-2.5 min-w-0 pr-2">
-              <div class="w-8 h-8 rounded-lg bg-[#1E60D5] text-white flex items-center justify-center font-extrabold text-sm flex-shrink-0 shadow-xs">
-                2
-              </div>
-              <div class="min-w-0">
-                <p class="text-xs font-bold text-[#181B28] group-hover:text-[#1E60D5] transition-colors truncate">${urls.partnerLabel}</p>
-                <p class="text-[10px] text-[#6B7280] truncate font-mono">${urls.partnerUrl}</p>
-              </div>
-            </div>
-            <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-[#1E60D5] text-white group-hover:bg-[#154EAE] flex items-center gap-1 flex-shrink-0 shadow-xs">
-              Open ↗
-            </span>
-          </a>
-
-          <!-- Channel 3: Guidelines / Rules / NIRF List -->
-          <a
-            href="${urls.guidelinesUrl}"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="p-2.5 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB] hover:border-[#D1D5DB] flex items-center justify-between text-[#374151] transition-all text-xs no-underline cursor-pointer hover:bg-white"
-          >
-            <div class="flex items-center gap-2 min-w-0 pr-2">
-              <span class="text-amber-600 flex-shrink-0">📄</span>
-              <span class="text-[11px] font-bold text-[#181B28] truncate">${urls.guidelinesLabel}</span>
-            </div>
-            <span class="text-[10px] text-[#4B5563] font-semibold flex-shrink-0">View PDF / Rules ↗</span>
-          </a>
-        </div>
-      </div>
-
-      <!-- Bottom Actions -->
-      <div class="pt-3 border-t border-[#E8E2D8] flex items-center gap-2">
-        <button
-          onclick="handleToggleTrackApplication('${opp.id}'); closeApplyOptionsModal();"
-          class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold ${isApplied ? 'bg-[#1E60D5] text-white shadow-xs' : 'bg-[#181B28] hover:bg-[#2A334B] text-white'} flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>${isApplied ? '✓ Tracked in IRIS' : 'Track Application in IRIS'}</span>
-        </button>
-        <button
-          onclick="handleApplyOpportunity('${opp.id}'); closeApplyOptionsModal();"
-          class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-[#FFF9EB] hover:bg-[#FEF3C7] text-[#92400E] border border-[#D4AF37]/50 flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
-          <span>Sync to Calendar</span>
-        </button>
-      </div>
-    `;
-
+    const version = ++applyRequestVersion;
     modal.classList.remove('hidden');
+    container.innerHTML = '<p class="p-5 text-sm text-[#4B5563]" role="status">Loading application guide from the local catalog…</p>';
+    const key = `iris_guide_${state.user?.id || 'demo'}_${oppId}`;
+    let guide = await api.request(`/opportunities/${encodeURIComponent(oppId)}/how-to-apply`);
+    let cached = false;
+    if (version !== applyRequestVersion) return;
+    if (guide) {
+      try { localStorage.setItem(key, JSON.stringify(guide)); } catch {}
+    } else {
+      try { guide = JSON.parse(localStorage.getItem(key) || 'null'); cached = !!guide; } catch {}
+    }
+    if (!guide) {
+      container.innerHTML = '<p class="p-4 text-sm text-[#92400E]" role="alert">The application guide is unavailable. Check your connection to the IRIS server and try again.</p>';
+      return;
+    }
+    activeApplicationGuide = guide;
+    const esc = escapeApplicationText;
+    const id = guide.opportunity_id;
+    let checked = guide.checked_documents || [];
+    if (cached) {
+      try { checked = JSON.parse(localStorage.getItem(`iris_docs_${id}`) || '[]'); } catch {}
+    }
+    localStorage.setItem(`iris_docs_${id}`, JSON.stringify(checked));
+    const isTracked = ['In Progress', 'Applied'].includes(guide.tracking_status);
+    const verified = guide.verification_status === 'VERIFIED_LIVE';
+    const channels = (guide.application_channels || []).map((channel, index) => `
+      <a href="${esc(safeApplicationUrl(channel.url))}" target="_blank" rel="noopener noreferrer" class="p-3 rounded-xl bg-[#FFF8E7] border border-[#D4AF37]/50 flex items-center justify-between gap-3 no-underline">
+        <span class="text-xs font-bold text-[#181B28]">${index + 1}. ${esc(channel.name)}</span>
+        <span class="text-[10px] font-bold text-[#92400E] whitespace-nowrap">${verified && channel.verified ? 'Apply Live' : 'Open'} ↗</span>
+      </a>`).join('');
+    const steps = (guide.how_to_apply_steps || []).map(step => `
+      <li class="p-3 rounded-xl bg-[#F9FAFB] border border-[#E5E7EB]">
+        <p class="text-xs font-bold text-[#181B28]">Step ${esc(step.step)} · ${esc(step.title)}</p>
+        <p class="text-xs text-[#4B5563] mt-1 leading-relaxed">${esc(step.detail)}</p>
+      </li>`).join('');
+    const docs = (guide.required_documents || []).map((doc, index) => `
+      <label class="flex items-start gap-2 text-xs text-[#374151] py-1.5 cursor-pointer">
+        <input type="checkbox" data-guide-document="${index}" ${checked.includes(doc) ? 'checked' : ''} class="mt-0.5 accent-[#1E60D5]" />
+        <span>${esc(doc)}</span>
+      </label>`).join('');
+    container.innerHTML = `
+      <div class="pb-3 border-b border-[#E8E2D8] mb-4">
+        <span class="match-badge-green text-[10px] font-semibold">${esc(guide.match_score)}% Match</span>
+        <h3 class="text-sm font-bold text-[#181B28] mt-2">${esc(guide.title)}</h3>
+        <p class="text-xs text-[#4B5563] mt-1">${esc(guide.provider)} · ${esc(guide.benefit_summary)}</p>
+        <p class="text-[10px] text-[#6B7280] mt-2">${cached ? 'Saved locally · ' : ''}${esc(guide.verification_status)} · Last live check: ${esc(guide.last_verified_at || 'not recorded')}</p>
+        <p class="text-[10px] text-[#6B7280] mt-1">${esc(guide.verification_note)}</p>
+      </div>
+      <section class="mb-4"><h4 class="text-xs font-bold text-[#92400E] mb-2">Application channels</h4><div class="space-y-2.5">${channels}</div>
+        ${guide.rules_pdf_url ? `<a href="${esc(safeApplicationUrl(guide.rules_pdf_url))}" target="_blank" rel="noopener noreferrer" class="block text-xs text-[#1E60D5] mt-3">View official PDF / rules ↗</a>` : ''}
+      </section>
+      <section class="mb-4"><h4 class="text-xs font-bold text-[#181B28] mb-2">How to apply · Step-by-step guide</h4><ol class="space-y-2">${steps}</ol></section>
+      <section class="mb-4"><h4 class="text-xs font-bold text-[#181B28] mb-2">Required documents</h4>${docs}<p id="guide-document-status" class="text-[10px] text-[#6B7280]" role="status"></p></section>
+      <div class="p-3 rounded-xl ${guide.conflict_warning ? 'bg-red-50 border border-red-200' : 'bg-[#FFF8E7] border border-[#D4AF37]/40'} mb-4 text-xs text-[#92400E]" role="status">
+        <strong>Policy Conflict Shield</strong><p class="mt-1">${esc(guide.conflict_warning || (guide.is_exclusive_tuition_grant ? 'Exclusive tuition grant: confirm non-duplication rules before accepting another tuition award.' : 'Stackable non-tuition benefit in the cached policy. Confirm the current offer terms.'))}</p>
+      </div>
+      ${(guide.gate_warnings || []).length ? `<p class="text-xs text-[#92400E] mb-3">${(guide.gate_warnings || []).map(esc).join('<br>')}</p>` : ''}
+      <div class="pt-3 border-t border-[#E8E2D8] flex items-center gap-2">
+        <button id="guide-track-button" class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-[#181B28] text-white cursor-pointer">${isTracked ? '✓ Tracked in IRIS' : 'Track Application in IRIS'}</button>
+        <button id="guide-calendar-button" class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold bg-[#FFF9EB] text-[#92400E] border border-[#D4AF37]/50 cursor-pointer">Sync to Calendar (.ics)</button>
+      </div>`;
+    container.querySelectorAll('[data-guide-document]').forEach(input => input.addEventListener('change', () => {
+      const documents = guide.required_documents || [];
+      const selection = [...container.querySelectorAll('[data-guide-document]:checked')].map(el => documents[Number(el.dataset.guideDocument)]);
+      localStorage.setItem(`iris_docs_${id}`, JSON.stringify(selection));
+      clearTimeout(documentSaveTimers.get(id));
+      documentSaveTimers.set(id, setTimeout(async () => {
+        const result = await api.request('/applications/track', { method: 'POST', body: JSON.stringify({ opportunity_id: id, status: guide.tracking_status || 'Saved', checked_documents: selection }) });
+        const status = document.getElementById('guide-document-status');
+        if (status && activeApplicationGuide?.opportunity_id === id) status.textContent = result ? 'Checklist saved to IRIS.' : 'Checklist saved on this device. Server is unavailable.';
+      }, 250));
+    }));
+    document.getElementById('guide-track-button').addEventListener('click', () => handleToggleTrackApplication(id, true));
+    document.getElementById('guide-calendar-button').addEventListener('click', () => downloadIcsFile(id));
   }
 
   function closeApplyOptionsModal(event = null) {
     if (event && event.target !== event.currentTarget) return;
+    applyRequestVersion += 1;
     const modal = document.getElementById('apply-options-modal-overlay');
     if (modal) modal.classList.add('hidden');
   }
@@ -2093,10 +2084,10 @@
     } else if (state.activeFeedTab === 'saved') {
       items = state.opportunities.filter(o => state.savedOppIds.has(o.id));
     } else {
-      items = state.opportunities;
+      items = state.opportunities.filter(o => o.isActive !== false);
       if (state.activeCategory && state.activeCategory !== 'All') {
         const catLower = state.activeCategory.toLowerCase();
-        items = state.opportunities.filter(o =>
+        items = items.filter(o =>
           (o.category || '').toLowerCase().includes(catLower) ||
           (o.type || '').toLowerCase().includes(catLower) ||
           (catLower === 'scholarships' && (o.type || '').toLowerCase().includes('scholar')) ||
@@ -2105,7 +2096,7 @@
           (catLower === 'student offers' && ((o.type || '').toLowerCase().includes('offer') || (o.category || '').toLowerCase().includes('offer'))) ||
           (catLower === 'international' && ((o.category || '').toLowerCase().includes('internat') || (o.location || '').toLowerCase() === 'germany'))
         );
-        if (items.length === 0) items = state.opportunities.slice(0, 3);
+
       }
     }
 
@@ -2193,7 +2184,7 @@
 
       return `
         <div class="${bgClass} group cursor-pointer" onclick="openDetailDrawer('${opp.id}')" tabindex="0" role="button" onkeydown="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openDetailDrawer('${opp.id}'); }">
-          
+
           <!-- Top Row: Tags + Bookmark -->
           <div class="flex items-center justify-between mb-3.5">
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -2233,7 +2224,7 @@
                 <span>Apply Options</span>
                 <span class="text-[9px]">↗</span>
               </button>
-              <button type="button" class="${btnClass}" onclick="event.stopPropagation(); openDetailDrawer('${opp.id}')" title="View details" aria-label="View Details">
+              <button type="button" class="${btnClass}" onclick="event.stopPropagation(); openApplyOptionsModal('${opp.id}')" title="View details" aria-label="View Details">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                 </svg>
@@ -2303,7 +2294,7 @@
     }).join('');
   }
 
-  
+
 function renderDeadlinesList() {
   const container = document.getElementById('deadlines-list-container');
   if (!container) return;
@@ -2369,7 +2360,7 @@ function renderDeadlinesList() {
     state.activeCategory = categoryName;
 
     // Update Category Card active styling
-    document.querySelectorAll('#category-cards-grid .category-card').forEach(card => {
+    document.querySelectorAll('#category-cards-grid .category-card, #category-cards-grid .cat-pill').forEach(card => {
       card.classList.remove('active-cat');
     });
     if (element) {
@@ -2524,35 +2515,10 @@ function renderDeadlinesList() {
   }
 
   async function handleApplyOpportunity(oppId) {
-    const opp = state.opportunities.find(o => o.id === oppId) || state.currentDrawerOpp;
-    if (!opp) return;
-
-    await api.applyOpportunity(oppId);
-    loadDashboardStats();
-    updateUserDisplay();
-
-    // Google Calendar Sync Event URL
-    const startTime = new Date();
-    startTime.setDate(startTime.getDate() + 5);
-    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
-
-    const fmtDate = d => d.toISOString().replace(/-|:|\.\d\d\d/g, '');
-    const calTitle = encodeURIComponent(`Application Deadline: ${opp.title}`);
-    const calDetails = encodeURIComponent(`IRIS one student opportunity.\nProvider: ${opp.provider}\nAmount: ${opp.amount}\nLocation: ${opp.location}\nApply link: https://iris.one/app/${opp.id}`);
-    const calUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${calTitle}&dates=${fmtDate(startTime)}/${fmtDate(endTime)}&details=${calDetails}&location=${encodeURIComponent(opp.location)}`;
-
-    showToast(`Applied for ${opp.title}! Opening Google Calendar sync...`, 'success', 3500);
-
-    setTimeout(() => {
-      window.open(calUrl, '_blank', 'noopener,noreferrer');
-    }, 350);
-
-    closeDetailDrawer();
+    return openApplyOptionsModal(oppId);
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  // DETAIL DRAWER
-  // ══════════════════════════════════════════════════════════════════
+
   function openDetailDrawer(oppId) {
     let opp = state.opportunities.find(o => o.id === oppId || String(o.id) === String(oppId));
     if (!opp) {
@@ -2897,409 +2863,24 @@ function renderDeadlinesList() {
   }
 
   async function verifyOpportunityLive(oppId) {
-    let opp = state.opportunities.find(o => o.id === oppId || String(o.id) === String(oppId));
-    if (!opp) opp = state.opportunities[0];
-
     const container = document.getElementById('drawer-live-verification-container');
-    const btn = document.getElementById(`drawer-verify-btn-${opp.id}`) || document.getElementById('drawer-verify-btn');
     if (!container) return;
-
-    // Set button to loading state
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = `
-        <svg class="animate-spin h-3.5 w-3.5 text-[#E0B84C]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <span class="text-[#FAF5EE]">TinyFish Web Agents Crawling...</span>
-        <span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">Stage A-C</span>
-      `;
+    container.innerHTML = '<p class="text-xs text-[#6B7280] p-3" role="status">Checking the portal and cached rules…</p>';
+    const result = await api.request('/verify-opportunity', { method: 'POST', body: JSON.stringify({ opportunity_id: String(oppId), live_agent: true }) });
+    if (!result) {
+      container.innerHTML = '<p class="text-xs text-[#92400E] p-3" role="alert">Verification could not complete. The stored catalog is still available.</p>';
+      return;
     }
-
-    // Render initial live terminal frame
-    container.innerHTML = `
-      <div class="verification-terminal-box p-3.5 rounded-xl space-y-3 mt-3 anim-fade-up">
-        <!-- Terminal Header -->
-        <div class="flex items-center justify-between pb-2 border-b border-white/10">
-          <div class="flex items-center gap-2">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-            </span>
-            <span class="text-[11px] font-bold text-[#E0B84C] tracking-wide uppercase">2-Filter Verification Engine</span>
-          </div>
-          <span id="verify-latency-counter" class="text-[10px] font-mono text-[#A1A1AA] bg-white/5 px-2 py-0.5 rounded border border-white/5">
-            0ms
-          </span>
-        </div>
-
-        <p class="text-[10px] text-[#A39B8B] leading-relaxed">
-          Autonomous verification: TinyFish renders live headless portal DOM & confirms button state → Gemini 2.5 Flash extracts structured JSON & audits eligibility gates.
-        </p>
-
-        <!-- Steps Timeline -->
-        <div class="space-y-2" id="verification-steps-list">
-          <div id="step-search" class="verification-step-card active flex items-start gap-2.5">
-            <div class="w-4 h-4 rounded-full border border-amber-400/50 flex items-center justify-center text-[10px] text-amber-300 animate-spin mt-0.5">
-              ◌
-            </div>
-            <div class="flex-1">
-              <div class="flex items-center justify-between">
-                <span class="text-[11px] font-semibold text-white flex items-center gap-1.5">
-                  <span class="step-badge-search text-[9px] px-1.5 py-0.2 rounded font-mono">TinySearch</span>
-                  Stage A: Live Discovery
-                </span>
-                <span class="text-[10px] font-mono text-[#A39B8B]">~480ms</span>
-              </div>
-              <p class="text-[10px] text-[#A39B8B] mt-0.5">Searching uncached portal index for "${opp.title}"...</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Audit result placeholder -->
-        <div id="verification-audit-result"></div>
-      </div>
-    `;
-
-    // Start latency ticker
-    const startTime = Date.now();
-    const latencyInterval = setInterval(() => {
-      const el = document.getElementById('verify-latency-counter');
-      if (el) el.textContent = `${Date.now() - startTime}ms`;
-    }, 50);
-
-    // Call Backend API
-    let apiData = null;
-    try {
-      apiData = await api.request('/verify-opportunity', {
-        method: 'POST',
-        body: JSON.stringify({
-          opportunity_id: opp.id,
-          title: opp.title,
-          provider: opp.provider,
-          user_profile: state.user,
-          live_agent: true
-        })
-      });
-    } catch (e) {
-      console.warn('API call encountered fallback', e);
-    }
-
-    const stepsConfig = [
-      {
-        id: 'step-search',
-        badge: 'TinySearch',
-        badgeClass: 'step-badge-search',
-        title: 'Stage A: Live Discovery',
-        time: '~480ms',
-        summary: `[TinySearch] Located official portal URL (~480ms)`,
-        subtext: apiData?.steps?.[0]?.detail || `Discovered portal: ${opp.portalUrl || 'https://www.reliancefoundation.org/scholarships'}`
-      },
-      {
-        id: 'step-fetch',
-        badge: 'TinyFetch',
-        badgeClass: 'step-badge-fetch',
-        title: 'Stage B: Clean Extraction',
-        time: '~1187ms',
-        summary: '[TinyFetch] Rendered JS DOM & stripped boilerplate',
-        subtext: 'Rendered client-side SPA in headless Chromium & extracted 3,420 clean tokens.'
-      },
-      {
-        id: 'step-agent',
-        badge: 'TinyAgent',
-        badgeClass: 'step-badge-agent',
-        title: 'Stage C: Deep Portal Action',
-        time: '~812ms',
-        summary: '[TinyAgent] Confirmed "Apply Now" button is active & not expired',
-        subtext: 'Autonomous click traversal confirmed active form submissions without redirects.'
-      },
-      {
-        id: 'step-gemini',
-        badge: 'Gemini API',
-        badgeClass: 'step-badge-gemini',
-        title: 'Filter Layer 2: Gemini 2.5 Flash',
-        time: '~643ms',
-        summary: `[Gemini API] Cross-checked eligibility against ${state.user.name}'s profile (${opp.matchPct}% Match)`,
-        subtext: `Evaluated ${state.user.college} (${state.user.state}) against academic & income constraints.`
-      }
-    ];
-
-    const stepsListEl = document.getElementById('verification-steps-list');
-
-    // Step 1: Complete TinySearch
-    await new Promise(r => setTimeout(r, 480));
-    const step1El = document.getElementById('step-search');
-    if (step1El) {
-      step1El.className = 'verification-step-card completed flex items-start gap-2.5';
-      step1El.innerHTML = `
-        <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] mt-0.5">✓</div>
-        <div class="flex-1">
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] font-semibold text-white flex items-center gap-1.5">
-              <span class="step-badge-search text-[9px] px-1.5 py-0.2 rounded font-mono">TinySearch</span>
-              ${stepsConfig[0].summary}
-            </span>
-            <span class="text-[9px] font-mono text-emerald-400">PASSED</span>
-          </div>
-          <p class="text-[10px] text-emerald-300/80 mt-0.5">${stepsConfig[0].subtext}</p>
-        </div>
-      `;
-    }
-
-    // Step 2: TinyFetch Active
-    if (stepsListEl) {
-      stepsListEl.insertAdjacentHTML('beforeend', `
-        <div id="step-fetch" class="verification-step-card active flex items-start gap-2.5 anim-fade-up">
-          <div class="w-4 h-4 rounded-full border border-purple-400/50 flex items-center justify-center text-[10px] text-purple-300 animate-spin mt-0.5">◌</div>
-          <div class="flex-1">
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] font-semibold text-white flex items-center gap-1.5">
-                <span class="step-badge-fetch text-[9px] px-1.5 py-0.2 rounded font-mono">TinyFetch</span>
-                Stage B: Clean Extraction
-              </span>
-              <span class="text-[10px] font-mono text-[#A39B8B]">~1187ms</span>
-            </div>
-            <p class="text-[10px] text-[#A39B8B] mt-0.5">Rendering JS-heavy DOM & stripping navigation/boilerplate...</p>
-          </div>
-        </div>
-      `);
-    }
-
-    // Step 2: Complete TinyFetch
-    await new Promise(r => setTimeout(r, 1100));
-    const step2El = document.getElementById('step-fetch');
-    if (step2El) {
-      step2El.className = 'verification-step-card completed flex items-start gap-2.5';
-      step2El.innerHTML = `
-        <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] mt-0.5">✓</div>
-        <div class="flex-1">
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] font-semibold text-white flex items-center gap-1.5">
-              <span class="step-badge-fetch text-[9px] px-1.5 py-0.2 rounded font-mono">TinyFetch</span>
-              ${stepsConfig[1].summary}
-            </span>
-            <span class="text-[9px] font-mono text-emerald-400">PASSED</span>
-          </div>
-          <p class="text-[10px] text-emerald-300/80 mt-0.5">${stepsConfig[1].subtext}</p>
-        </div>
-      `;
-    }
-
-    // Step 3: TinyAgent Active
-    if (stepsListEl) {
-      stepsListEl.insertAdjacentHTML('beforeend', `
-        <div id="step-agent" class="verification-step-card active flex items-start gap-2.5 anim-fade-up">
-          <div class="w-4 h-4 rounded-full border border-amber-400/50 flex items-center justify-center text-[10px] text-amber-300 animate-spin mt-0.5">◌</div>
-          <div class="flex-1">
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] font-semibold text-white flex items-center gap-1.5">
-                <span class="step-badge-agent text-[9px] px-1.5 py-0.2 rounded font-mono">TinyAgent</span>
-                Stage C: Deep Portal Action
-              </span>
-              <span class="text-[10px] font-mono text-[#A39B8B]">~812ms</span>
-            </div>
-            <p class="text-[10px] text-[#A39B8B] mt-0.5">Evaluating application portal DOM interactability & expiry flags...</p>
-          </div>
-        </div>
-      `);
-    }
-
-    // Step 3: Complete TinyAgent
-    await new Promise(r => setTimeout(r, 800));
-    const step3El = document.getElementById('step-agent');
-    if (step3El) {
-      step3El.className = 'verification-step-card completed flex items-start gap-2.5';
-      step3El.innerHTML = `
-        <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] mt-0.5">✓</div>
-        <div class="flex-1">
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] font-semibold text-white flex items-center gap-1.5">
-              <span class="step-badge-agent text-[9px] px-1.5 py-0.2 rounded font-mono">TinyAgent</span>
-              ${stepsConfig[2].summary}
-            </span>
-            <span class="text-[9px] font-mono text-emerald-400">PASSED</span>
-          </div>
-          <p class="text-[10px] text-emerald-300/80 mt-0.5">${stepsConfig[2].subtext}</p>
-        </div>
-      `;
-    }
-
-    // Step 4: Gemini API Active
-    if (stepsListEl) {
-      stepsListEl.insertAdjacentHTML('beforeend', `
-        <div id="step-gemini" class="verification-step-card active flex items-start gap-2.5 anim-fade-up">
-          <div class="w-4 h-4 rounded-full border border-pink-400/50 flex items-center justify-center text-[10px] text-pink-300 animate-spin mt-0.5">◌</div>
-          <div class="flex-1">
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] font-semibold text-white flex items-center gap-1.5">
-                <span class="step-badge-gemini text-[9px] px-1.5 py-0.2 rounded font-mono">Gemini API</span>
-                Filter Layer 2 (Gemini 2.5 Flash)
-              </span>
-              <span class="text-[10px] font-mono text-[#A39B8B]">~643ms</span>
-            </div>
-            <p class="text-[10px] text-[#A39B8B] mt-0.5">Cross-checking structured JSON gates against Adarsh's profile...</p>
-          </div>
-        </div>
-      `);
-    }
-
-    // Step 4: Complete Gemini API
-    await new Promise(r => setTimeout(r, 650));
-    const step4El = document.getElementById('step-gemini');
-    if (step4El) {
-      step4El.className = 'verification-step-card completed flex items-start gap-2.5';
-      step4El.innerHTML = `
-        <div class="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] mt-0.5">✓</div>
-        <div class="flex-1">
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] font-semibold text-white flex items-center gap-1.5">
-              <span class="step-badge-gemini text-[9px] px-1.5 py-0.2 rounded font-mono">Gemini API</span>
-              ${stepsConfig[3].summary}
-            </span>
-            <span class="text-[9px] font-mono text-emerald-400">PASSED</span>
-          </div>
-          <p class="text-[10px] text-emerald-300/80 mt-0.5">${stepsConfig[3].subtext}</p>
-        </div>
-      `;
-    }
-
-    // Stop latency timer
-    clearInterval(latencyInterval);
-    const totalDuration = Date.now() - startTime;
-    const latencyEl = document.getElementById('verify-latency-counter');
-    if (latencyEl) latencyEl.textContent = `${totalDuration}ms total`;
-
-    // Render Final Audited Verification Certificate Card
-    const verified = apiData?.verified_data || {
-      title: opp.title,
-      provider: opp.provider,
-      financial_value_inr: opp.amount,
-      deadline_iso: opp.deadline,
-      application_url: opp.portalUrl || 'https://www.reliancefoundation.org/scholarships',
-      is_active_link: true,
-      urgency_label: 'Application window active',
-      conflict_warning: null,
-      ai_confidence: 0.994
-    };
-
-    const auditContainer = document.getElementById('verification-audit-result');
-    if (auditContainer) {
-      const liveBadgeHtml = (apiData?.live_badge || apiData?.pipeline_mode === 'live') ? `
-        <div class="px-2.5 py-1.5 rounded-lg bg-amber-500/15 border border-amber-400/40 text-[11px] font-mono text-amber-300 font-bold flex items-center justify-between gap-1.5 mb-2.5 shadow-xs">
-          <span class="flex items-center gap-2">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span>⚡ LIVE TINYFISH API RUN (Authenticated via X-API-Key)</span>
-          </span>
-          <span class="text-[9px] text-[#A1A1AA] font-mono">${apiData?.steps?.[1]?.data?.content_length || '5,387'} chars DOM</span>
-        </div>
-      ` : '';
-
-      const agentData = apiData?.steps?.find(s => s.stage === 'TinyAgent')?.data || {};
-      const agentOutputHtml = agentData?.agent_output ? `
-        <div class="p-2 rounded bg-black/40 border border-white/10 text-[10px] font-mono text-emerald-200/90 leading-relaxed mb-2">
-          <div class="text-[#E0B84C] font-semibold text-[9px] uppercase tracking-wider mb-0.5">🤖 Mako Agent Live Verification:</div>
-          <div>${agentData.agent_output.substring(0, 200)}...</div>
-        </div>
-      ` : '';
-
-      auditContainer.innerHTML = `
-        <div class="verified-audit-card p-3.5 space-y-2.5 anim-fade-up mt-2">
-          ${liveBadgeHtml}
-          ${agentOutputHtml}
-          <!-- Card Header -->
-          <div class="flex items-center justify-between pb-2 border-b border-emerald-500/20">
-            <div class="flex items-center gap-2">
-              <span class="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-bold">✓</span>
-              <span class="text-xs font-bold text-emerald-300 tracking-wide">VERIFIED 100% ACTIVE ON WEB</span>
-            </div>
-            <span class="text-[9px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 font-mono">
-              Confidence ${(verified.ai_confidence ? (verified.ai_confidence * 100).toFixed(1) : '99.4')}%
-            </span>
-          </div>
-
-          <!-- Structured Info -->
-          <div class="space-y-1.5 text-xs">
-            <div class="flex justify-between items-center">
-              <span class="text-[#A1A1AA]">Standardized Value:</span>
-              <span class="font-bold text-[#E0B84C]">${verified.financial_value_inr || opp.amount}</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-[#A1A1AA]">Deadline Window:</span>
-              <span class="font-medium text-white">${verified.deadline_iso || opp.deadline} (${verified.urgency_label || 'Active'})</span>
-            </div>
-          </div>
-
-          <!-- 4-Gate Eligibility Matrix -->
-          <div class="p-2.5 rounded-lg bg-black/40 border border-white/5 space-y-1 text-[11px]">
-            <div class="text-[9px] uppercase tracking-wider text-[#A78BFA] font-bold mb-1">
-              Adarsh's Profile Match Audit:
-            </div>
-            <div class="flex items-center justify-between text-[#E4E4E7]">
-              <span>🎓 Academic Tier (${state.user.college}):</span>
-              <span class="text-emerald-400 font-semibold">✓ Eligible</span>
-            </div>
-            <div class="flex items-center justify-between text-[#E4E4E7]">
-              <span>📍 Domicile (${state.user.state}):</span>
-              <span class="text-emerald-400 font-semibold">✓ Eligible</span>
-            </div>
-            <div class="flex items-center justify-between text-[#E4E4E7]">
-              <span>📊 Merit / Marks Gate:</span>
-              <span class="text-emerald-400 font-semibold">✓ Passed (60%+ Gate)</span>
-            </div>
-            <div class="flex items-center justify-between text-[#E4E4E7]">
-              <span>🛡️ Concurrent Grant Conflict:</span>
-              <span class="text-emerald-400 font-semibold">${verified.conflict_warning ? '⚠️ ' + verified.conflict_warning : '✓ Clean (No Conflict)'}</span>
-            </div>
-          </div>
-
-          <!-- Actions Row -->
-          <div class="flex items-center gap-2 pt-1">
-            <a
-              href="${verified.application_url || opp.portalUrl || '#'}"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="flex-1 py-1.5 px-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-semibold text-[11px] text-center transition-colors flex items-center justify-center gap-1.5"
-            >
-              <span>Visit Official Portal</span>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-              </svg>
-            </a>
-            <button
-              onclick="openVerificationModal()"
-              class="py-1.5 px-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[#A1A1AA] hover:text-white text-[11px] font-medium transition-colors"
-            >
-              Inspect JSON
-            </button>
-          </div>
-        </div>
-      `;
-    }
-
-    // Reset button to verified state
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2.5">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-        <span class="text-emerald-300 font-bold">Verified Live on Web (TinyFish + Gemini)</span>
-        <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">100% Active</span>
-      `;
-    }
-
-    showToast(`✓ "${opp.title}" verified live on web via TinyFish & Gemini!`, 'success', 3500);
+    const esc = escapeApplicationText;
+    container.innerHTML = `<div class="verification-terminal-box p-3.5 rounded-xl space-y-3 mt-3">
+      <p class="text-xs font-bold text-[#92400E]">${esc(result.verification_status)} · ${esc(result.pipeline_mode)}</p>
+      <div id="verification-steps-list" class="space-y-2">${(result.steps || []).map(step => `<div class="verification-step-card p-2 rounded border border-[#E8E2D8]"><strong class="text-xs text-[#181B28]">${esc(step.stage)} · ${esc(step.status)}</strong><p class="text-xs text-[#4B5563] mt-1">${esc(step.detail)}</p></div>`).join('')}</div>
+      <p id="verification-audit-result" class="text-xs text-[#4B5563]">${esc(result.message)}</p>
+      <span id="verify-latency-counter" class="text-[10px] text-[#6B7280]">${esc(result.total_duration_ms)}ms</span>
+    </div>`;
+    refreshSyncIndicator();
   }
 
-  // ══════════════════════════════════════════════════════════════════
-  // AI ASSISTANT CHAT ENGINE (Gemini 2.5 Flash + SQLite RAG + Agentic Discovery)
-  // ══════════════════════════════════════════════════════════════════
-  state.aiChatHistory = [];
-  state.aiActiveOpportunityId = null;
 
   function formatAssistantMarkdown(rawText) {
     if (!rawText) return '';
@@ -3307,6 +2888,8 @@ function renderDeadlinesList() {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
+
+    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (match, label, url) => `<a href="${escapeApplicationText(safeApplicationUrl(url.replace(/&amp;/g, '&')))}" target="_blank" rel="noopener noreferrer" class="text-amber-300 underline">${label}</a>`);
 
     // Code blocks
     text = text.replace(/```([\s\S]*?)```/g, (m, p1) => {
@@ -3336,7 +2919,7 @@ function renderDeadlinesList() {
     text = text.replace(/^-\s+(.+)$/gm, '<li class="ml-3.5 list-disc text-zinc-300 leading-relaxed">$1</li>');
 
     // Wrap consecutive list items
-    text = text.replace(/(<li[\s\S]*?<\/li>\n?)+/g, '<ul class="space-y-1 my-1.5">$0</ul>');
+    text = text.replace(/(<li[\s\S]*?<\/li>\n?)+/g, match => `<ul class="space-y-1 my-1.5">${match}</ul>`);
 
     // Paragraphs
     const paragraphs = text.split(/\n\n+/);
@@ -3366,7 +2949,7 @@ function renderDeadlinesList() {
           <p class="text-[10px] text-[#A1A1AA] truncate">${opp.provider || 'Verified Partner'} · <span class="text-[#D4AF37] font-semibold">${opp.amount || 'Benefits Included'}</span></p>
         </div>
         <div class="flex items-center gap-1.5 flex-shrink-0">
-          <button onclick="openDetailDrawer('${oppId}')" class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer" title="View Details">
+          <button onclick="openApplyOptionsModal('${oppId}')" class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer" title="View Details">
             View ↗
           </button>
           <button onclick="handleToggleTrackApplication('${oppId}')" class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold ${isApplied ? 'bg-blue-600/30 text-blue-300 border border-blue-500/40' : 'bg-[#D4AF37] text-black hover:brightness-105'} cursor-pointer transition-colors shadow-2xs">
@@ -3463,58 +3046,33 @@ function renderDeadlinesList() {
     if (sendBtn) sendBtn.disabled = true;
     msgContainer.scrollTop = msgContainer.scrollHeight;
 
-    const payload = {
-      message: query,
-      history: (state.aiChatHistory || []).slice(-6),
-      student_profile: {
-        name: state.user.name || 'Adarsh Maurya',
-        academic_tier: state.user.college || 'B.Tech 1st Year • GGSIPU USAR',
-        college: state.user.college || 'GGSIPU USAR',
-        state: state.user.state || 'Delhi',
-        country: state.user.country || 'India',
-        marks: state.user.cgpa || state.user.marks || '85% (8.5 CGPA)',
-        family_income_lpa: state.user.family_income_lpa || 4.5,
-        skills: state.user.skills || ['Python', 'AI/ML', 'Web Development', 'Cloud', 'Data Structures'],
-        saved_ids: [...state.savedOppIds],
-        applied_ids: [...state.appliedOppIds],
-        match_score: state.stats.match_score || 78,
-      },
-      active_opportunity_id: state.aiActiveOpportunityId || null,
-    };
-
-        let replyData = null;
+    let replyData = null;
+    let assistantTimeout;
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 45000);
-      const res = await fetch(`${CONFIG.API_BASE_URL}/assistant/chat`, {
+      assistantTimeout = setTimeout(() => controller.abort(), 45000);
+      const res = await fetch(`${CONFIG.API_BASE_URL}/assistant/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(state.token ? { 'Authorization': `Bearer ${state.token}` } : {})
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ query, opportunity_id: state.aiActiveOpportunityId || null }),
         signal: controller.signal
       });
-      clearTimeout(timer);
       if (res.ok) {
         replyData = await res.json();
-      } else if (res.status === 429) {
-        const e = await res.json().catch(() => ({}));
-        replyData = { reply: e.detail || 'You are sending messages too quickly. Please wait a moment.' };
+        replyData.reply = replyData.answer;
+        replyData.suggested_opportunities = replyData.matched_opportunities || [];
       }
     } catch (e) {
       console.warn('Assistant API call failed, using graceful fallback:', e);
+    } finally {
+      clearTimeout(assistantTimeout);
     }
 
     if (!replyData) {
-      replyData = {
-        reply: `I have analyzed your **B.Tech 1st Year (GGSIPU USAR, Delhi)** profile against our verified opportunities.\n\n` +
-               `You have high clearance for the **Bharti Airtel Scholarship** (100% tuition + laptop, income ≤ ₹8L) ` +
-               `and the **Delhi Higher Education MCM Scheme** (up to 100% waiver for GGSIPU students).\n\n` +
-               `*Note: Both are exclusive tuition grants and cannot be held simultaneously for tuition.* ` +
-               `However, the **Free Google Gemini Student Offer (2TB)** is 100% stackable!`,
-        suggested_opportunities: state.opportunities.slice(0, 2),
-      };
+      replyData = { reply: 'I cannot reach the IRIS catalog right now. Reconnect to the server to get an answer grounded in your stored profile and opportunity records.', suggested_opportunities: [] };
     }
 
     // Hide typing indicator & re-enable send
@@ -3545,6 +3103,7 @@ function renderDeadlinesList() {
     msgContainer.scrollTop = msgContainer.scrollHeight;
 
     // Update history
+    state.aiChatHistory = state.aiChatHistory || [];
     state.aiChatHistory.push({ role: 'user', content: query });
     state.aiChatHistory.push({ role: 'assistant', content: replyData.reply || '' });
     if (state.aiChatHistory.length > 12) {
@@ -3723,60 +3282,26 @@ function renderDeadlinesList() {
   // OFFLINE CALENDAR (.ICS) GENERATOR (RFC 5545 COMPLIANT)
   // ══════════════════════════════════════════════════════════════════
   async function downloadIcsFile(oppId) {
-    const opp = state.opportunities.find(o => o.id === oppId) || state.currentDrawerOpp;
-    if (!opp) return;
-
     try {
-      const response = await fetch(`${CONFIG.API_BASE_URL}/opportunities/${opp.id}/ics`);
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `${opp.id}-deadline.ics`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        showToast('Official RFC 5545 calendar (.ics) with alarms downloaded!', 'success');
+      const response = await fetch(`${CONFIG.API_BASE_URL}/opportunities/${encodeURIComponent(oppId)}/calendar.ics`);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        showToast(error.detail || 'Calendar download is unavailable.', 'info');
         return;
       }
-    } catch (e) {
-      console.warn('Backend ICS generation fallback to client blob', e);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${oppId}-deadline.ics`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('Calendar downloaded with 72-hour and 24-hour reminders.', 'success');
+    } catch {
+      showToast('Connect to the IRIS server to download the stored deadline.', 'info');
     }
-
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() + 5);
-    const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
-    const fmt = d => d.toISOString().replace(/-|:|\.\d\d\d/g, '');
-
-    const icsContent = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//IRIS one//Student Opportunity Calendar//EN',
-      'BEGIN:VEVENT',
-      `UID:${opp.id}-${Date.now()}@iris.one`,
-      `DTSTAMP:${fmt(new Date())}`,
-      `DTSTART:${fmt(startDate)}`,
-      `DTEND:${fmt(endDate)}`,
-      `SUMMARY:Deadline: ${opp.title}`,
-      `DESCRIPTION:${(opp.shortDesc || opp.fullDesc || '').replace(/\n/g, ' ')}\\nProvider: ${opp.provider}\\nAmount: ${opp.amount}\\nLocation: ${opp.location}`,
-      `LOCATION:${opp.location}`,
-      'STATUS:CONFIRMED',
-      'END:VEVENT',
-      'END:VCALENDAR'
-    ].join('\r\n');
-
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${opp.id}-deadline.ics`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    showToast('Offline calendar (.ics) file downloaded!', 'success');
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -4202,7 +3727,7 @@ function renderDeadlinesList() {
   window.getBrandLogoMarkup = getBrandLogoMarkup;
   window.getApplyUrls = getApplyUrls;
   window.updateUserDisplay = updateUserDisplay;
-  
+
   // ══════════════════════════════════════════════════════════════════
   // DYNAMIC OPPORTUNITY MATCHER (CLAMPED 65–99%)
   // ══════════════════════════════════════════════════════════════════
@@ -4333,7 +3858,7 @@ function renderDeadlinesList() {
         state.user.resumeName = 'Adarsh_Maurya_USAR_Resume.pdf';
       }
 
-      state.stats.match_score = 96;
+      state.stats.match_score = 0;
 
       try {
         localStorage.setItem(CONFIG.USER_KEY, JSON.stringify(state.user));
@@ -4345,38 +3870,15 @@ function renderDeadlinesList() {
 
       const matchRes = await api.request('/opportunities/match', {
         method: 'POST',
-        body: JSON.stringify({
-          academic_tier: state.user.college.includes('B.Tech') ? 'UG Engineering' : '12th',
-          state: state.user.state || 'Delhi',
-          skills: state.user.skills || [],
-          marks_pct: state.user.cgpa_or_percentage || 86,
-          income_lpa: state.user.family_income_lpa || 6.5
-        })
+        body: JSON.stringify({ user_profile: { ...state.user, ...(state.user.student_profile || {}) } })
       });
-
-      if (matchRes && matchRes.matches && matchRes.matches.length > 0) {
-        matchRes.matches.forEach(m => {
-          const target = state.opportunities.find(o => o.id === m.id || o.id === m.slug || String(o.id) === String(m.id));
-          if (target) {
-            target.matchPct = Math.round(m.match_score);
-            target.breakdown = m.breakdown;
-            target.eligibility_checklist = m.eligibility_checklist;
-            target.conflict_warning = m.conflict_warning;
-            target.status = m.status || target.status;
-          }
-        });
+      if (Array.isArray(matchRes)) {
+        state.opportunities = matchRes.map(normalizeBackendOpp);
+        state.stats.match_score = Math.round(matchRes[0]?.match_score || 0);
       } else {
         recalculateLocalMatches();
       }
 
-      // Ensure top matches reflect calibrated 90%+ scores
-      state.opportunities.forEach(o => {
-        const id = (o.id || '').toLowerCase();
-        if (id === 'reliance') o.matchPct = 96;
-        else if (id === 'airtel') o.matchPct = 94;
-        else if (id === 'delhi-mcm') o.matchPct = 92;
-        else if (id === 'microsoft') o.matchPct = 91;
-      });
       state.opportunities.sort((a, b) => (b.matchPct || 0) - (a.matchPct || 0));
 
       markStep(s3, 'done');
@@ -4388,11 +3890,11 @@ function renderDeadlinesList() {
 
       // Update Breakdown modal values
       const totalEl = document.getElementById('breakdown-total-score');
-      if (totalEl) totalEl.textContent = '96%';
+      if (totalEl) totalEl.textContent = `${state.stats.match_score}%`;
       const skillEl = document.getElementById('breakdown-skill-pts');
-      if (skillEl) skillEl.textContent = '+25 pts';
+      if (skillEl) skillEl.textContent = 'See match details';
 
-      showToast(`Resume verified! Extracted: Python, FastAPI, React, AI/ML, UI/UX. Profile Completeness 98%, Match Score 96%!`, 'success', 4000);
+      showToast('Resume analyzed and opportunity matches updated from your profile.', 'success', 4000);
 
       setTimeout(() => {
         if (progressBox) progressBox.classList.add('hidden');
@@ -4455,7 +3957,7 @@ function renderDeadlinesList() {
 
       if (res && res.verified_opportunity) {
         const newOpp = normalizeBackendOpp(res.verified_opportunity);
-        newOpp.matchPct = res.match?.match_score ? Math.round(res.match.match_score) : 94;
+        newOpp.matchPct = Math.round(res.match?.match_score ?? 0);
         newOpp.eligibility_checklist = res.match?.eligibility_checklist || [];
         newOpp.conflict_warning = res.match?.conflict_warning || null;
 
@@ -4474,12 +3976,12 @@ function renderDeadlinesList() {
         }
         openDetailDrawer(newOpp.id);
       } else {
-        showToast('Opportunity verified and cataloged in your feed!', 'success');
+        showToast(res?.message || 'No verified opportunity was added. Check the server connection and provider configuration.', 'info', 5000);
         renderRecommendedCards();
       }
     } catch (err) {
       console.warn('Scan & Verify encountered fallback', err);
-      showToast('Opportunity verified from portal!', 'success');
+      showToast('Live verification was unavailable. Your cached catalog is unchanged.', 'info');
     } finally {
       if (btn) {
         btn.disabled = false;
@@ -4672,21 +4174,29 @@ function renderDeadlinesList() {
     localStorage.setItem(`iris_docs_${oppId}`, JSON.stringify(docs));
   }
 
-  function handleToggleTrackApplication(oppId) {
-    if (state.appliedOppIds.has(oppId)) {
-      state.appliedOppIds.delete(oppId);
-      showToast('Opportunity removed from Active Applications', 'info');
-    } else {
-      state.appliedOppIds.add(oppId);
-      showToast('Application tracked! Added to your Active Applications & Calendar', 'success');
+  async function handleToggleTrackApplication(oppId, keepTracked = false) {
+    const button = document.getElementById('guide-track-button');
+    if (button) button.disabled = true;
+    let documents = [];
+    try { documents = JSON.parse(localStorage.getItem(`iris_docs_${oppId}`) || '[]'); } catch {}
+    const status = !keepTracked && state.appliedOppIds.has(oppId) ? 'Saved' : 'In Progress';
+    const result = await api.request('/applications/track', { method: 'POST', body: JSON.stringify({ opportunity_id: String(oppId), status, checked_documents: documents }) });
+    if (button) button.disabled = false;
+    if (!result) {
+      showToast('Tracking could not be saved. Reconnect to IRIS and try again.', 'info');
+      return;
     }
+    if (status === 'Saved') state.appliedOppIds.delete(oppId);
+    else state.appliedOppIds.add(oppId);
     localStorage.setItem(CONFIG.APPLIED_KEY, JSON.stringify([...state.appliedOppIds]));
+    state.stats.applied_count = result.tracked_count;
+    if (activeApplicationGuide?.opportunity_id === oppId) activeApplicationGuide.tracking_status = status;
+    if (button) button.textContent = status === 'Saved' ? 'Track Application in IRIS' : '✓ Tracked in IRIS';
+    showToast(status === 'Saved' ? 'Application moved to saved.' : 'Application tracked in IRIS.', 'success');
     updateUserDisplay();
     loadDashboardStats();
     renderRecommendedCards();
-    if (state.currentDrawerOpp && state.currentDrawerOpp.id === oppId) {
-      openDetailDrawer(oppId);
-    }
+    if (state.currentDrawerOpp?.id === oppId) openDetailDrawer(oppId);
   }
 
   // Exports
@@ -4721,10 +4231,44 @@ function renderDeadlinesList() {
   window.askIrisAboutOpportunity = askIrisAboutOpportunity;
   window.submitAiMessage = submitAiMessage;
 
+  async function refreshSyncIndicator() {
+    const status = await api.request('/sync/status');
+    const indicator = document.getElementById('catalog-sync-status');
+    if (!indicator) return;
+    if (!status) { indicator.textContent = 'Catalog sync unavailable'; return; }
+    const hours = Math.floor(status.seconds_until_next_run / 3600);
+    const minutes = Math.floor((status.seconds_until_next_run % 3600) / 60);
+    indicator.textContent = status.sync_running ? 'Catalog sync in progress…' : `12-hour cache sync · Last: ${status.last_sync_iso ? new Date(status.last_sync_iso).toLocaleString() : 'not run yet'} · Next: ${hours}h ${minutes}m`;
+  }
+
+  async function triggerCatalogSync() {
+    const result = await api.request('/sync/trigger', { method: 'POST', body: JSON.stringify({ live: true }) });
+    showToast(result ? 'Catalog verification queued. Status updates automatically.' : 'Could not start catalog sync.', result ? 'success' : 'info');
+    refreshSyncIndicator();
+  }
+  window.triggerCatalogSync = triggerCatalogSync;
+
+  async function restoreTrackedApplications() {
+    const tracked = await api.request('/applications/tracked');
+    if (!Array.isArray(tracked)) return;
+    state.appliedOppIds = new Set(tracked.filter(row => ['In Progress', 'Applied'].includes(row.status)).map(row => row.opportunity_id || String(row.db_id)));
+    for (const row of tracked) {
+      localStorage.setItem(`iris_docs_${row.opportunity_id}`, row.checked_documents_json || '[]');
+    }
+    localStorage.setItem(CONFIG.APPLIED_KEY, JSON.stringify([...state.appliedOppIds]));
+    const missing = tracked.filter(row => !state.opportunities.some(opp => opp.id === row.opportunity_id));
+    const details = await Promise.all(missing.map(row => api.getOpportunity(row.opportunity_id || row.db_id)));
+    for (const opp of details) if (opp) state.opportunities.push(opp);
+    updateUserDisplay();
+    renderRecommendedCards();
+  }
+
   // Initialize router and personal preferences on DOM load
   document.addEventListener('DOMContentLoaded', () => {
     router.init();
-    
+    refreshSyncIndicator();
+    setInterval(refreshSyncIndicator, 30000);
+
     // Restore sidebar shrunk state if previously set
     if (localStorage.getItem('iris_sidebar_shrunk') === 'true') {
       toggleRightSidebarShrink(true);
@@ -4735,10 +4279,93 @@ function renderDeadlinesList() {
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         toggleRightSidebar(false);
+        closeApplyOptionsModal();
       }
     });
 
     console.log('%c IRIS one %c Platform & Personal OS initialized successfully.', 'background:#7C3AED;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold;', 'color:#D4AF37;font-weight:bold;');
   });
+
+
+  // ══════════════════════════════════════════════════════════════════
+  // HORIZONTAL SLIDER SECTIONS (Internships & Jobs)
+  // ══════════════════════════════════════════════════════════════════
+
+  function getBrandLogoMarkupSmall(opp) {
+    const lt = (opp.logoType || '').toLowerCase();
+    if (lt === 'microsoft') {
+      return `<div class="slider-card-logo"><svg viewBox="0 0 21 21" width="22" height="22"><rect x="1" y="1" width="9" height="9" fill="#F25022"/><rect x="11" y="1" width="9" height="9" fill="#7FBA00"/><rect x="1" y="11" width="9" height="9" fill="#00A4EF"/><rect x="11" y="11" width="9" height="9" fill="#FFB900"/></svg></div>`;
+    }
+    if (lt === 'google') {
+      return `<div class="slider-card-logo"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg></div>`;
+    }
+    const char = (opp.logoChar || (opp.provider || 'O')[0]).toUpperCase();
+    const colors = ['#1E60D5','#059669','#7C3AED','#E58929','#D4AF37','#EF4444'];
+    const bg = colors[char.charCodeAt(0) % colors.length];
+    return `<div class="slider-card-logo" style="background:${bg}20; border-color:${bg}30;"><span style="font-size:14px;font-weight:800;color:${bg};">${char}</span></div>`;
+  }
+
+  function renderInternshipsSlider() {
+    const container = document.getElementById('internships-slider');
+    if (!container) return;
+    const items = state.opportunities.filter(o =>
+      (o.category || '').toLowerCase().includes('intern') ||
+      (o.type || '').toLowerCase().includes('intern')
+    ).slice(0, 8);
+    if (!items.length) { container.innerHTML = '<p class="text-xs text-[#6B7280] p-4">No internships found.</p>'; return; }
+    container.innerHTML = items.map(opp => `
+      <div class="slider-card" onclick="openDetailDrawer('${opp.id}')">
+        <div class="slider-card-header">
+          ${getBrandLogoMarkupSmall(opp)}
+          <div class="slider-card-info">
+            <p class="slider-card-title">${opp.title}</p>
+            <p class="slider-card-provider">${opp.provider || 'Verified Partner'}</p>
+          </div>
+        </div>
+        <div class="slider-card-meta">
+          ${opp.amount ? `<span class="slider-card-stipend"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>${opp.amount}</span>` : ''}
+          ${opp.amount && opp.location ? '<span class="slider-card-dot"></span>' : ''}
+          ${opp.location ? `<span class="slider-card-location"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${opp.location}</span>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function renderJobsSlider() {
+    const container = document.getElementById('jobs-slider');
+    if (!container) return;
+    // For jobs, show opportunities tagged as Jobs or non-internship, non-scholarship types
+    const items = state.opportunities.filter(o => {
+      const t = (o.type || '').toLowerCase();
+      const cat = (o.category || '').toLowerCase();
+      return cat.includes('job') || t.includes('job') || t.includes('full-time') ||
+             (!t.includes('intern') && !t.includes('scholar') && !t.includes('compet') && !t.includes('hack') && !cat.includes('scholar') && !cat.includes('intern'));
+    }).slice(0, 8);
+    if (!items.length) { container.innerHTML = '<p class="text-xs text-[#6B7280] p-4">No jobs found.</p>'; return; }
+    container.innerHTML = items.map(opp => `
+      <div class="slider-card" onclick="openDetailDrawer('${opp.id}')">
+        <div class="slider-card-header">
+          ${getBrandLogoMarkupSmall(opp)}
+          <div class="slider-card-info">
+            <p class="slider-card-title">${opp.title}</p>
+            <p class="slider-card-provider">${opp.provider || 'Verified Partner'}</p>
+          </div>
+        </div>
+        <div class="slider-card-meta">
+          ${opp.amount ? `<span class="slider-card-stipend"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>${opp.amount}</span>` : ''}
+          ${opp.amount && opp.location ? '<span class="slider-card-dot"></span>' : ''}
+          ${opp.location ? `<span class="slider-card-location"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${opp.location}</span>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function slideSection(sliderId, direction) {
+    const el = document.getElementById(sliderId);
+    if (el) el.scrollBy({ left: direction * 260, behavior: 'smooth' });
+  }
+
+  // Expose for HTML onclick
+  window.slideSection = slideSection;
 
 })();

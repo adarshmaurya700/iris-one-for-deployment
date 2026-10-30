@@ -26,10 +26,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy source code and frontend assets
 COPY backend/ /app/backend/
 COPY frontend/ /app/frontend/
-COPY banner_exact.png /app/frontend/banner_exact.png
-COPY bird_exact.png /app/frontend/bird_exact.png
-COPY banner_exact.png /app/banner_exact.png
-COPY bird_exact.png /app/bird_exact.png
 
 # Expose HTTP port (Render, Railway, Fly.io, Cloud Run inject $PORT)
 EXPOSE 8000

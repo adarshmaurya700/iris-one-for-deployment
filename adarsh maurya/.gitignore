@@ -1,0 +1,12 @@
+.env
+.env.local
+.venv/
+__pycache__/
+*.pyc
+*.db
+*.db-shm
+*.db-wal
+*.scheduler.lock
+node_modules/
+test-results/
+package-lock.json

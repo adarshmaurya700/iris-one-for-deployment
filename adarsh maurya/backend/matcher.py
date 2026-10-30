@@ -11,6 +11,9 @@ Scoring (clamped 65–99):
 from __future__ import annotations
 
 import json
+import math
+import hashlib
+import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 
@@ -231,6 +234,20 @@ def _ai_reason(profile: Dict[str, Any], parts: List[str]) -> str:
 
 
 def calculate_match(user: Optional[Dict[str, Any]], opportunity: Dict[str, Any]) -> Dict[str, Any]:
+    if opportunity.get('provider'):
+        result = evaluate_match_and_conflicts(user or {}, opportunity, [])
+        points = result['breakdown']
+        labels = [('academic', 'Academic Tier', 35), ('domicile', 'State / Domicile', 25), ('skills', 'Skill Match', 25), ('gates', 'Eligibility Gates', 15)]
+        return {
+            **result, 'overall': result['match_score'],
+            'skill_match': round(points['skills'] * 4, 1),
+            'location_match': round(points['domicile'] * 4, 1),
+            'academic_match': round(points['academic'] / 35 * 100, 1),
+            'profile_completeness': round(points['gates'] / 15 * 100, 1),
+            'ai_match_reason': '; '.join(result['gate_warnings']) or 'Academic, domicile, skills and eligibility fit',
+            'is_exclusive_tuition_grant': bool(opportunity.get('is_exclusive_tuition_grant')),
+            'breakdown': [{'factor': label, 'weight': f'{weight} pts', 'points': points[key], 'score': round(points[key] / weight * 100, 1), 'details': '; '.join(result['gate_warnings']) if key == 'gates' else label} for key, label, weight in labels],
+        }
     profile = profile_from_user(user)
     gates = parse_eligibility(opportunity)
 
@@ -333,9 +350,87 @@ def score_catalog(
                     f"{item.get('title')} is an exclusive tuition grant and cannot be claimed together with {', '.join(others)}."
                 )
         item["conflict_warning"] = warning
+        if item.get('is_sponsored') and (item['match_score'] < 85 or not match_info.get('eligible', True)):
+            continue
         scored.append(item)
     scored.sort(key=lambda x: x.get("match_score", 0), reverse=True)
     return scored
+
+
+def compute_deterministic_embedding(text: str) -> List[float]:
+    """Stable across processes and machines, unlike Python's randomized hash()."""
+    vector = [0.0] * 128
+    tokens = re.findall(r'[a-z0-9]+', (text or '').lower())
+    for token in tokens:
+        digest = hashlib.blake2b(token.encode(), digest_size=8).digest()
+        vector[int.from_bytes(digest, 'big') % len(vector)] += 1.0
+    norm = math.sqrt(sum(value * value for value in vector)) or 1.0
+    return [round(value / norm, 7) for value in vector]
+
+
+def cosine_similarity(a, b):
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    norm = math.sqrt(sum(x*x for x in a) * sum(x*x for x in b))
+    return sum(x*y for x, y in zip(a, b)) / norm if norm else 0.0
+
+
+def evaluate_match_and_conflicts(student, opp, tracked_exclusive_titles):
+    from catalog import json_value
+    student = dict(student or {})
+    tier = str(student.get('academic_tier') or student.get('academic_stage') or student.get('college') or '').upper()
+    if tier and tier not in ('TIER_1_SCHOOL', 'TIER_2_UG_PG'):
+        tier = 'TIER_1_SCHOOL' if any(word in tier for word in ('SCHOOL', '12TH', 'CLASS 12', 'CBSE')) else 'TIER_2_UG_PG'
+    target = opp.get('academic_tier') or 'ALL'
+    academic = 35 if tier and target in ('ALL', tier) else 15 if tier else 0
+    state = str(student.get('state_domicile') or student.get('state') or '').lower().strip()
+    location = str(opp.get('location_state') or 'All India').lower()
+    national = location in ('all india', 'online', 'national', 'pan india', 'global')
+    domicile = 25 if national or (state and state in location) else 0
+    skills = student.get('skills_json') or student.get('extracted_skills') or student.get('skills') or []
+    if isinstance(skills, str):
+        skills = json_value(skills) if skills.startswith('[') else skills.split(',')
+    own_skills = {str(s).strip().lower() for s in skills}
+    required = {str(s).strip().lower() for s in json_value(opp.get('skills_tags_json'))} - {'any'}
+    overlap = len(own_skills & required) / len(required) if required else 1.0
+    sv = json_value(student.get('embedding_json')) or compute_deterministic_embedding(' '.join(own_skills))
+    ov = json_value(opp.get('embedding_json'))
+    skill_points = round(25 * (0.6 * overlap + 0.4 * max(0, cosine_similarity(sv, ov))), 1) if required else 25
+    warnings = []
+    failures = 0
+    if not tier:
+        warnings.append('Academic stage is not set; confirm eligibility.')
+    elif academic < 35:
+        warnings.append('Academic tier does not match the listed requirement.')
+    if not national and not domicile:
+        warnings.append('Domicile does not match or has not been provided.')
+    checks = []
+    marks = _num(student.get('class_12_pct') if student.get('class_12_pct') is not None else student.get('cgpa_or_percentage'))
+    income = _num(student.get('family_income_inr'))
+    if income is None and student.get('family_income_lpa') is not None:
+        income = _num(student['family_income_lpa'])
+        income = income * 100000 if income is not None else None
+    min_marks = opp.get('min_marks_pct') or 0
+    cap = opp.get('max_family_income_inr')
+    if min_marks:
+        checks.append((marks is not None and marks >= min_marks, f'Requires at least {min_marks:g}% marks; current marks are missing or below the cutoff.'))
+    if cap is not None and cap < 99999999:
+        checks.append((income is not None and income <= cap, f'Requires family income no more than INR {cap:,}; income is missing or above the cap.'))
+    if opp.get('nirf_top_50_required'):
+        checks.append((student.get('nirf_top_50') in (1, True), 'Requires confirmed admission in a top-50 NIRF engineering institution.'))
+    for passed, warning in checks:
+        if not passed:
+            failures += 1
+            warnings.append(warning)
+    gates = max(0, 15 - failures * 8)
+    others = [t for t in tracked_exclusive_titles if t != opp.get('title')]
+    conflict = None
+    if opp.get('is_exclusive_tuition_grant') and others:
+        conflict = f"Policy Conflict Alert: {opp['title']} and {', '.join(others)} are marked as exclusive tuition grants in the cached rules. Do not claim both for the same tuition costs; confirm the current official terms. Non-tuition perks do not reimburse tuition."
+    return {'match_score': round(academic + domicile + skill_points + gates, 1),
+            'breakdown': {'academic': academic, 'domicile': domicile, 'skills': skill_points, 'gates': gates},
+            'eligible': bool(tier and academic == 35 and domicile and not failures),
+            'gate_warnings': warnings, 'conflict_warning': conflict}
 
 
 def eligibility_checklist(profile: Dict[str, Any], opportunity: Dict[str, Any]) -> List[Dict[str, Any]]:
