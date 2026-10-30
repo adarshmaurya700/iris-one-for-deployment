@@ -1109,7 +1109,7 @@ async def assistant_chat_endpoint(
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
     db: sqlite3.Connection = Depends(db_session),
 ):
-    return await process_assistant_chat(
+    result = await process_assistant_chat(
         message=req.message,
         history=req.history,
         student_profile=req.student_profile,
@@ -1117,6 +1117,12 @@ async def assistant_chat_endpoint(
         db=db,
         current_user=current_user,
     )
+    from ai_assistant import DEFAULT_QUICK_PROMPTS, ask_local_cache
+    if result.get('mode') == 'fallback':
+        local = await ask_local_cache(req.message, student_identity(current_user), db, req.active_opportunity_id, current_user)
+        result.update(local, reply=local['answer'], suggested_opportunities=local['matched_opportunities'][:2])
+    result.setdefault('quick_prompts', DEFAULT_QUICK_PROMPTS)
+    return result
 
 
 # ---------------------------------------------------------------------------
