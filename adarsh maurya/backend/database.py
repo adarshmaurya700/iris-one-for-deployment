@@ -300,6 +300,17 @@ def init_db() -> None:
         status TEXT DEFAULT 'In Progress', checked_documents_json TEXT DEFAULT '[]',
         updated_at TEXT NOT NULL, UNIQUE(student_id, opportunity_id)
     )""")
+    for column, ddl in {
+        'country': "TEXT DEFAULT 'India'", 'graduation_year': 'INTEGER',
+        'domains_json': "TEXT DEFAULT '[]'", 'areas_of_interest': "TEXT DEFAULT ''",
+        'resume_filename': "TEXT DEFAULT ''", 'resume_uploaded_at': "TEXT DEFAULT ''",
+        'onboarding_complete': 'INTEGER DEFAULT 0', 'preferences_json': "TEXT DEFAULT '{}'",
+    }.items():
+        _ensure_column(cursor, 'student_profiles', column, ddl)
+    cursor.execute('''CREATE TABLE IF NOT EXISTS profile_saved (
+        student_id TEXT NOT NULL, opportunity_id INTEGER NOT NULL REFERENCES opportunities(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL, PRIMARY KEY(student_id, opportunity_id)
+    )''')
     cursor.execute("""CREATE TABLE IF NOT EXISTS sync_runs (
         id INTEGER PRIMARY KEY AUTOINCREMENT, run_type TEXT NOT NULL,
         opportunities_updated INTEGER NOT NULL DEFAULT 0, fake_links_purged INTEGER DEFAULT 0,

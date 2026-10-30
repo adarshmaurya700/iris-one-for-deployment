@@ -286,6 +286,94 @@ class BackendTests(unittest.TestCase):
             finally:
                 db.close()
 
+    def test_onboarding_profile_alias_persists_and_clears_fields(self):
+        headers = self.signup()
+        values = {'name': 'A Student', 'age': 19, 'academic_stage': 'B.Tech (1st Year)', 'institution': 'GGSIPU USAR', 'graduation_year': 2028, 'country': 'India', 'state_domicile': 'Delhi', 'skills': ['Python', 'React'], 'domains': ['Scholarships', 'Hackathons'], 'onboarding_complete': True, 'preferences': {'reduce_motion': True}}
+        response = self.client.post('/api/profile/update', json=values, headers=headers)
+        self.assertEqual(response.status_code, 200, response.text)
+        profile = self.client.get('/api/profile', headers=headers).json()
+        self.assertEqual(profile['institution'], 'GGSIPU USAR')
+        self.assertEqual(profile['graduation_year'], 2028)
+        self.assertEqual(profile['domains'], ['Scholarships', 'Hackathons'])
+        self.assertTrue(profile['preferences']['reduce_motion'])
+        self.assertEqual(profile['onboarding_complete'], 1)
+        self.assertNotIn('resume_text', profile)
+        self.assertNotIn('embedding_json', profile)
+        self.assertEqual(self.client.get('/api/auth/me', headers=headers).json()['name'], 'A Student')
+        cleared = self.client.post('/api/profile/update', headers=headers, json={'skills': [], 'domains': []}).json()
+        self.assertEqual(cleared['skills'], [])
+        self.assertEqual(cleared['domains'], [])
+        self.assertLess(cleared['profile_completeness'], profile['profile_completeness'])
+
+    def test_saved_alias_is_idempotent_and_isolated(self):
+        headers = self.signup()
+        for _ in range(2):
+            self.assertEqual(self.client.post('/api/opportunities/reliance/save', headers=headers).status_code, 200)
+        saved = self.client.get('/api/opportunities/saved', headers=headers).json()
+        self.assertEqual(len(saved), 1)
+        self.assertEqual(saved[0]['id'], 'reliance')
+        self.assertEqual(self.client.get('/api/opportunities/saved').json(), [])
+        self.assertTrue(self.client.get('/api/saved', headers=headers).json())
+        self.assertEqual(self.client.delete('/api/opportunities/reliance/save', headers=headers).status_code, 200)
+        self.assertEqual(self.client.get('/api/opportunities/saved', headers=headers).json(), [])
+        self.assertEqual(self.client.get('/api/saved', headers=headers).json(), [])
+
+    def test_application_status_keeps_documents_and_exports_calendar(self):
+        doc = self.client.get('/api/opportunities/reliance/how-to-apply').json()['required_documents'][0]
+        result = self.client.post('/api/applications/track', json={'opportunity_id': 'reliance', 'status': 'Draft', 'checked_documents': [doc]})
+        self.assertEqual(result.status_code, 200, result.text)
+        for status in ('Applied', 'Under Review', 'Interview'):
+            updated = self.client.post('/api/applications/track', json={'opportunity_id': 'reliance', 'status': status})
+            self.assertEqual(updated.status_code, 200)
+            self.assertEqual(updated.json()['checked_documents'], [doc])
+        overview = self.client.get('/api/applications/overview').json()
+        self.assertEqual(overview['applications'][0]['application_status'], 'Interview')
+        export = self.client.get('/api/applications/calendar.ics')
+        self.assertEqual(export.status_code, 200)
+        self.assertEqual(export.text.count('BEGIN:VCALENDAR'), 1)
+        self.assertEqual(export.text.count('BEGIN:VEVENT'), 1)
+        self.assertIn('TRIGGER:-PT72H', export.text)
+        self.assertEqual(self.client.delete('/api/applications/tracked/reliance').status_code, 200)
+        self.assertEqual(self.client.get('/api/applications/overview').json()['applications'], [])
+        self.assertEqual(self.client.get('/api/applications/calendar.ics').status_code, 409)
+
+    def test_assistant_stream_preserves_markdown_and_metadata(self):
+        query = {'query': 'How do I apply for Airtel and combine it with Delhi MCM?'}
+        answer = self.client.post('/api/assistant/ask', json=query).json()
+        stream = self.client.post('/api/assistant/ask', json={**query, 'stream': True})
+        self.assertEqual(stream.status_code, 200)
+        self.assertIn('text/event-stream', stream.headers['content-type'])
+        deltas, final = [], None
+        for event in stream.text.replace('\r\n', '\n').split('\n\n'):
+            lines = event.splitlines()
+            if len(lines) < 2:
+                continue
+            payload = json.loads(lines[1].removeprefix('data: '))
+            if lines[0] == 'event: delta': deltas.append(payload['text'])
+            if lines[0] == 'event: complete': final = payload
+        self.assertEqual(''.join(deltas), answer['answer'])
+        self.assertEqual(final['matched_opportunities'], answer['matched_opportunities'])
+        self.assertTrue(final['policy_conflicts'])
+
+    def test_guest_workspaces_are_private_and_invalid_tokens_do_not_write_to_demo(self):
+        first = self.client.get('/api/profile').json()
+        self.assertEqual(first['workspace_kind'], 'guest')
+        self.client.post('/api/profile/update', json={'name': 'Private guest name'})
+        self.client.post('/api/opportunities/reliance/save')
+        cookie = self.client.cookies.get('iris_workspace')
+        self.client.cookies.clear()
+        second = self.client.get('/api/profile').json()
+        self.assertNotEqual(second['id'], first['id'])
+        self.assertNotEqual(second['name'], 'Private guest name')
+        self.assertEqual(self.client.get('/api/opportunities/saved').json(), [])
+        rejected = self.client.post('/api/profile/update', headers={'Authorization': 'Bearer expired-or-invalid'}, json={'name': 'Must not save'})
+        self.assertEqual(rejected.status_code, 401)
+        self.assertNotEqual(self.client.get('/api/profile').json()['name'], 'Must not save')
+        self.client.cookies.clear()
+        self.client.cookies.set('iris_workspace', cookie)
+        self.assertEqual(self.client.get('/api/profile').json()['name'], 'Private guest name')
+        self.assertEqual(len(self.client.get('/api/opportunities/saved').json()), 1)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

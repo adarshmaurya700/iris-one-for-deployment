@@ -7,9 +7,11 @@ python -m pip install -r backend/requirements.txt
 python -m uvicorn main:app --app-dir backend --host 127.0.0.1 --port 8000
 ```
 
-Open http://127.0.0.1:8000/ and sign in or create an account. API documentation is at `/docs`. No external keys are required for SQLite storage, local retrieval, application instructions, tracking or calendar downloads. Anonymous requests use the shared sample student; use authenticated accounts for personal profiles and application records.
+Open http://127.0.0.1:8000/ to explore, sign in, or create an account. API documentation is at `/docs`. No external keys are required for SQLite storage, local retrieval, application instructions, tracking or calendar downloads. Guest workspaces use a signed, HttpOnly browser cookie with a seven-day lifetime and are isolated from one another. Sign in to keep progress linked to an account. A supplied invalid or expired authorization token is rejected instead of silently writing to a guest profile.
 
-The existing layout and routes are retained. The catalog now supplies the application modal, persistent document checklist, policy conflict warnings, match scores and calendar export. Ask Iris retrieves up to five local records using deterministic vectors and keyword/category matching. It never launches web scraping during a chat or feed view. Existing `/api/assistant/chat` clients remain supported.
+The paper-tone frontend has a single view router and one shared navigation shell. Home, Opportunities, Saved, Applications, Detail, Ask IRIS, Profile and Settings are mutually exclusive views. The profile stays in a centered 820 px container; application calendars and AI context remain in their dedicated workspaces. The two-step onboarding wizard saves profile details, skills and interests to the backend. Existing backend routes remain supported.
+
+The catalog supplies the application modal, persistent document checklist, policy conflict warnings, match scores and calendar export. Ask Iris retrieves up to five local records using deterministic vectors and keyword/category matching. It never launches web scraping during a chat or feed view. Existing `/api/assistant/chat` clients remain supported; the new chat workspace uses streamed `/api/assistant/ask` responses.
 
 ## Configuration
 
@@ -27,12 +29,16 @@ APScheduler starts with the FastAPI lifespan and runs every 12 hours. An OS lock
 
 - `GET /api/sync/status`: recorded sync result, last actual live verification and next-run countdown.
 - `POST /api/sync/trigger`: `{"live": true}` or an offline cache check with `{"live": false}`.
-- `POST /api/assistant/ask`: `{"query": "How do I apply for Airtel?", "student_id": "default_student", "opportunity_id": "airtel"}`. Opportunity focus is optional. Signed-in requests automatically select the caller's profile; another student's ID is rejected.
+- `POST /api/assistant/ask`: `{"query": "How do I apply for Airtel?", "student_id": "default_student", "opportunity_id": "airtel", "stream": true}`. Opportunity focus and streaming are optional. Streaming sends SSE `status`, `delta` and `complete` events; complete includes referenced records and policy conflicts. Signed-in and guest requests automatically select the caller's workspace; another student's ID is rejected.
 - `GET /api/opportunities/{id-or-slug}/how-to-apply`: channels, numbered guide, required documents, match breakdown, gate warnings, policy conflict, verification provenance and saved checklist.
-- `POST /api/applications/track`: `{"opportunity_id": "airtel", "status": "In Progress", "checked_documents": []}`. Status may be `Saved`, `In Progress` or `Applied`. Writes are idempotent and update existing dashboard application counts for signed-in users.
+- `POST /api/applications/track`: `{"opportunity_id": "airtel", "status": "Draft", "checked_documents": []}`. Status may be `Saved`, `In Progress`, `Draft`, `Applied`, `Under Review`, `Interview`, `Offer` or `Rejected`. Omitting the document list preserves the saved checklist. Writes are idempotent and update existing dashboard application counts for signed-in users.
 - `GET /api/applications/tracked`: restore the caller's tracked applications and checklist state.
 - `GET /api/opportunities/{id-or-slug}/calendar.ics`: RFC 5545 export with escaped/folded UTF-8 lines and 72-hour/24-hour alarms. A missing deadline returns HTTP 409 rather than inventing a date.
 - `PUT /api/auth/profile` also accepts `class_12_pct`, `family_income_inr` and `nirf_top_50` to confirm eligibility inputs. A college name alone does not prove a NIRF ranking.
+- `GET /api/profile` and `POST /api/profile/update`: the onboarding/profile contract, including education, graduation year, country, skill tags, interests, resume metadata, preferences and calculated completeness. Raw resume text is not returned by the profile endpoint.
+- `GET /api/opportunities/saved` and `POST/DELETE /api/opportunities/{id}/save`: persistent, scoped shortlists, including compatibility with the older signed-in saved route.
+- `GET /api/applications/overview`, `DELETE /api/applications/tracked/{id}` and `GET /api/applications/calendar.ics`: application statuses, removal and a combined reminder feed. The calendar opens on the current month; month navigation can inspect June 2025 or any other month.
+- `GET /api/platform/config`: non-secret database, catalog and provider capability information for Settings.
 
 Resume uploads support PDF, DOCX and TXT. Parsed profiles and resume text are stored for the selected student and used by subsequent retrieval. Existing opportunity IDs and foreign keys are preserved; public slugs provide the stable text IDs without destructively replacing the old numeric primary keys.
 
@@ -53,12 +59,8 @@ npx playwright install chromium
 node scripts/test_ui.cjs
 ```
 
-The backend suite and original route smoke checks use disposable databases and no billed provider calls. Browser checks cover offline assets, guide steps, checklist persistence, tracking, conflicts, calendar download, chat and mobile sizing. Set `PLAYWRIGHT_CHANNEL=chrome` to use an installed Chrome browser. A separate integration test runs with `IRIS_TEST_POSTGRES_URL` pointing to a disposable pgvector database; the GitHub workflow provisions one automatically.
+The backend suite and original route smoke checks use disposable databases and no billed provider calls. Browser checks cover all eight isolated views, mobile overflow, keyboard search, filters, persisted saved items and document checklists, application statuses, calendar downloads, streamed chat, resume upload, both onboarding steps, authentication, account isolation, preferences and failed-save recovery. Set `PLAYWRIGHT_CHANNEL=chrome` to use an installed Chrome browser. A separate integration test runs with `IRIS_TEST_POSTGRES_URL` pointing to a disposable pgvector database; the GitHub workflow provisions one automatically.
 
-The interface uses checked-in compiled Tailwind CSS so the external styling CDN is not required. Rebuild after changing utility classes:
-
-```powershell
-npm exec --yes --package=tailwindcss@3.4.17 -- tailwindcss -c tailwind.config.cjs -i frontend/css/tailwind.source.css -o frontend/css/tailwind.css --minify
-```
+The interface uses local semantic CSS and vanilla JavaScript. No frontend build or external styling CDN is required. Optional web fonts fall back to system sans-serif fonts when offline. Design tokens and responsive layouts are in `frontend/css/styles.css`; the router and backend actions are in `frontend/js/app.js`.
 
 The 50 ms retrieval target in the brief depends on catalog size, database and hosting hardware; this change does not claim a measured production service-level guarantee.
