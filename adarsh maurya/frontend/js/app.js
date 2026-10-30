@@ -1075,7 +1075,8 @@
     routes: {
       login: 'screen-login',
       setup: 'screen-setup',
-      dashboard: 'screen-dashboard'
+      dashboard: 'screen-dashboard',
+      profile: 'screen-dashboard'
     },
 
     init() {
@@ -1133,6 +1134,7 @@
       });
 
       if (screenId === 'screen-dashboard') {
+        applyDashboardView();
         refreshDashboardData();
       } else if (screenId === 'screen-setup') {
         populateSetupFields();
@@ -1514,6 +1516,9 @@
 
     // KPI Card 3 Interests Pills
     renderInterestsPills();
+
+    // Student Profile & AI full page
+    updateProfilePage();
   }
 
   async function loadDashboardStats() {
@@ -3545,6 +3550,10 @@
   }
 
   function handleNavClick(element, navKey) {
+    // Leaving the Student Profile & AI page for a dashboard section
+    if (['home', 'opportunities', 'saved', 'applications'].includes(navKey) && state.dashboardView === 'profile') {
+      router.navigate('dashboard');
+    }
     document.querySelectorAll('.dash-sidebar-item').forEach(item => {
       item.classList.remove('active');
     });
@@ -3561,8 +3570,7 @@
     } else if (navKey === 'applications') {
       switchFeedTab('applications');
     } else if (navKey === 'profile') {
-      toggleRightSidebar(true);
-      showToast('Student Profile & Details drawer opened', 'info', 1200);
+      router.navigate('profile');
     } else if (navKey === 'ai') {
       openAiChatModal();
     } else if (navKey === 'settings') {
@@ -3979,6 +3987,77 @@
       }
     }
   });
+
+  // ══════════════════════════════════════════════════════════════════
+  // STUDENT PROFILE & AI — FULL PAGE VIEW (#profile)
+  // ══════════════════════════════════════════════════════════════════
+  state.dashboardView = 'dashboard';
+
+  function applyDashboardView() {
+    const isProfile = (window.location.hash || '').replace('#', '').trim() === 'profile';
+    state.dashboardView = isProfile ? 'profile' : 'dashboard';
+
+    const main = document.getElementById('main-canvas');
+    const right = document.getElementById('right-sidebar');
+    const page = document.getElementById('profile-page');
+    if (main) main.classList.toggle('view-hidden', isProfile);
+    if (right) right.classList.toggle('view-hidden', isProfile);
+    if (page) page.classList.toggle('view-hidden', !isProfile);
+
+    const items = document.querySelectorAll('.dash-sidebar-item');
+    if (isProfile) {
+      items.forEach(i => i.classList.toggle('active', i.dataset.nav === 'profile'));
+      updateProfilePage();
+    } else {
+      const active = document.querySelector('.dash-sidebar-item.active');
+      if (!active || active.dataset.nav === 'profile') {
+        items.forEach(i => i.classList.toggle('active', i.dataset.nav === 'home'));
+      }
+    }
+  }
+
+  function updateProfilePage() {
+    const u = state.user || {};
+    const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    const name = u.name || 'Adarsh Maurya';
+    const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const completeness = u.completeness || 75;
+
+    setText('pp-avatar', initials);
+    setText('pp-name', name);
+    setText('pp-badge', u.college || 'B.Tech CSE, 1st Year');
+    setText('pp-completeness', `${completeness}%`);
+    const bar = document.getElementById('pp-completeness-bar');
+    if (bar) bar.style.width = `${completeness}%`;
+    setText('pp-college', u.displayClass || u.university || 'USAR');
+    setText('pp-age', u.age || 19);
+    setText('pp-state', u.city || u.state || 'Delhi');
+    setText('pp-country', u.country || 'India');
+    setText('pp-ai-name', name.split(' ')[0]);
+    setText('pp-resume', u.resumeName || 'No resume uploaded yet');
+
+    const skills = document.getElementById('pp-skills');
+    if (skills) {
+      const list = u.skills && u.skills.length ? u.skills : ['Technology', 'Research', 'Innovation', 'Education'];
+      skills.innerHTML = list.map(s => `<span class="interest-pill">${s}</span>`).join('');
+    }
+
+    const dl = document.getElementById('pp-deadlines');
+    if (dl) {
+      dl.innerHTML = state.deadlines.map(item => {
+        const opp = state.opportunities.find(o => o.id === item.oppId) || { id: item.oppId, title: item.title, provider: item.title };
+        return `
+          <div class="flex items-center gap-3 p-2 rounded-xl hover:bg-black/5 transition-colors cursor-pointer group" onclick="openDetailDrawer('${item.oppId}')">
+            ${getBrandLogoMarkup(opp, 'w-9 h-9 rounded-lg')}
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-bold text-[#181B28] group-hover:text-[#1E60D5] transition-colors truncate leading-tight">${item.title}</p>
+              <p class="text-[10px] text-[#6B7280] leading-tight mt-0.5">${item.date}</p>
+            </div>
+            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${item.badgeClass || 'bg-amber-100 text-amber-800'}">${item.badge}</span>
+          </div>`;
+      }).join('');
+    }
+  }
 
   // ══════════════════════════════════════════════════════════════════
   // EXPOSE GLOBAL METHODS

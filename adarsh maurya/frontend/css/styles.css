@@ -810,3 +810,8 @@ button, input, select, textarea {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(212, 175, 55, 0.12);
 }
+
+/* ── View toggle (dashboard vs. Student Profile & AI page) ── */
+.view-hidden {
+  display: none !important;
+}

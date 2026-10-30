@@ -56,7 +56,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,400&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="css/styles.css?v=2.5" />
+  <link rel="stylesheet" href="css/styles.css?v=2.6" />
 </head>
 <body class="antialiased selection:bg-[#7C3AED] selection:text-white">
 
@@ -493,7 +493,7 @@
       <div id="main-canvas" class="flex-1 flex flex-col overflow-hidden" style="background-color: var(--bg-canvas);">
 
         <!-- Top Header Bar with Search & User Dropdown -->
-        <header class="top-header-canvas flex items-center justify-between gap-4 px-6 py-3 flex-shrink-0 relative">
+        <header class="top-header-canvas flex items-center justify-between gap-4 px-10 py-5 flex-shrink-0 relative">
           <!-- Search Input with ⌘K shortcut (Pill search) -->
           <div class="flex-1 max-w-xl">
             <div class="search-pill-input flex items-center gap-2.5 px-3.5 py-2">
@@ -590,7 +590,7 @@
                   <p id="dropdown-user-name" class="font-semibold text-[#181B28]">Adarsh Maurya</p>
                   <p id="dropdown-user-email" class="text-[10px] text-[#6B7280]">student@university.edu.in</p>
                 </div>
-                <button onclick="toggleRightSidebarShrink(false); toggleUserMenu();" class="w-full text-left px-2 py-1.5 rounded hover:bg-[#F3F4F6] text-[#1E60D5] font-semibold flex items-center gap-2 cursor-pointer">
+                <button onclick="router.navigate('profile'); toggleUserMenu();" class="w-full text-left px-2 py-1.5 rounded hover:bg-[#F3F4F6] text-[#1E60D5] font-semibold flex items-center gap-2 cursor-pointer">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
                   <span>Open Profile &amp; AI</span>
                 </button>
@@ -613,10 +613,10 @@
         </header>
 
         <!-- Scrollable Main Center Area -->
-        <main class="flex-1 overflow-y-auto px-6 py-5 space-y-6" style="background-color: var(--bg-canvas);">
+        <main class="flex-1 overflow-y-auto px-10 py-10 space-y-14" style="background-color: var(--bg-canvas);">
 
           <!-- 1. WELCOME BANNER (Exact Match to Reference Screenshot + Personal OS Ambience Studio ) -->
-          <div id="dashboard-welcome-banner" class="rounded-2xl p-6 sm:p-7 relative anim-fade-up overflow-hidden shadow-sm flex flex-col justify-between" style="background: url('assets/hero_desk_bg_clean.png') center right / cover no-repeat; min-height: 200px;">
+          <div id="dashboard-welcome-banner" class="rounded-2xl p-8 sm:p-12 relative anim-fade-up overflow-hidden shadow-sm flex flex-col justify-between" style="background: url('assets/hero_desk_bg_clean.png') center right / cover no-repeat; min-height: 320px;">
             
             <!-- Personal OS Theme / Wallpaper Switcher Button -->
             <button onclick="openBannerStudioModal()" class="absolute top-3.5 right-3.5 z-20 px-2.5 py-1.5 rounded-xl bg-white/85 hover:bg-white text-xs text-[#181B28] border border-[#E5E0D8] shadow-sm flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-md group" title="Personalize Wall Banner, Focus OS & Widgets">
@@ -640,13 +640,13 @@
               </h1>
               
               <!-- Personal Focus Motto (Clickable to customize) -->
-              <p id="welcome-user-motto" class="text-xs sm:text-sm text-[#4B5563] font-medium leading-relaxed max-w-md mb-4 group cursor-pointer flex items-baseline gap-1" onclick="openBannerStudioModal()" title="Click to customize your personal daily focus goal">
+              <p id="welcome-user-motto" class="text-xs sm:text-sm text-[#4B5563] font-medium leading-relaxed max-w-md mb-8 group cursor-pointer flex items-baseline gap-1" onclick="openBannerStudioModal()" title="Click to customize your personal daily focus goal">
                 <span id="welcome-motto-text">We've found opportunities that match your profile, interests and goals — just for you.</span>
                 <span class="opacity-0 group-hover:opacity-100 text-[10px] text-[#D4AF37] transition-opacity flex-shrink-0">✎</span>
               </p>
 
               <!-- Floating Stats Capsule -->
-              <div class="banner-stats-capsule inline-flex items-center py-2 px-3.5 sm:px-4 rounded-2xl relative mb-3" id="stats-container">
+              <div class="banner-stats-capsule inline-flex items-center py-2 px-3.5 sm:px-4 rounded-2xl relative mb-7" id="stats-container">
                 <!-- Opportunity Metrics View -->
                 <div id="capsule-view-metrics" class="flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
                   <!-- Match Score -->
@@ -695,7 +695,7 @@
           </div>
 
           <!-- OPPORTUNITY LIVE SCANNER BAR (TinyFish + Gemini Engine) -->
-          <div class="p-2 sm:p-2.5 rounded-xl bg-white border border-[#E8E2D8] flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shadow-sm">
+          <div class="p-4 sm:p-4 rounded-xl bg-white border border-[#E8E2D8] flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shadow-sm">
             <div class="flex-1 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#FAF6F0] border border-[#E5E0D8] focus-within:border-[#1E60D5] transition-colors">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" class="flex-shrink-0">
                 <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -719,8 +719,84 @@
             </button>
           </div>
 
+          <!-- 4. EXPLORE BY CATEGORY CARDS (Interactive Category Filter) -->
+          <div class="anim-fade-up">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-base font-semibold text-[#181B28]">Explore by category</h3>
+              <button onclick="filterByCategory('All', null)" class="text-xs text-[#1E60D5] hover:underline font-medium cursor-pointer">
+                All categories
+              </button>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5" id="category-cards-grid">
+              <!-- 1: Scholarships (Active) -->
+              <div class="category-card active-cat" data-category="Scholarships" onclick="filterByCategory('Scholarships', this)">
+                <div class="cat-icon-container cat-icon-gold">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.8">
+                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 10 3 12 0v-5"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="cat-title">Scholarships</p>
+                  <p class="cat-count">1.2k+ opportunities</p>
+                </div>
+              </div>
+
+              <!-- 2: Internships -->
+              <div class="category-card" data-category="Internships" onclick="filterByCategory('Internships', this)">
+                <div class="cat-icon-container cat-icon-purple">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="cat-title">Internships</p>
+                  <p class="cat-count">3.4k+ opportunities</p>
+                </div>
+              </div>
+
+              <!-- 3: Competitions -->
+              <div class="category-card" data-category="Competitions" onclick="filterByCategory('Competitions', this)">
+                <div class="cat-icon-container cat-icon-purple">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
+                    <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/><path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h10c.55 0 1-.45 1-1v-1c0-.55-.45-1-1-1h-2c-.55 0-1-.45-1-1v-2.34"/><path d="M6 5h12v4a6 6 0 0 1-12 0V5z"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="cat-title">Competitions</p>
+                  <p class="cat-count">1.1k+ opportunities</p>
+                </div>
+              </div>
+
+              <!-- 4: Student Offers -->
+              <div class="category-card" data-category="Student Offers" onclick="filterByCategory('Student Offers', this)">
+                <div class="cat-icon-container cat-icon-purple">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="cat-title">Student Offers</p>
+                  <p class="cat-count">600+ opportunities</p>
+                </div>
+              </div>
+
+              <!-- 5: International -->
+              <div class="category-card" data-category="International" onclick="filterByCategory('International', this)">
+                <div class="cat-icon-container cat-icon-purple">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
+                    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <p class="cat-title">International</p>
+                  <p class="cat-count">800+ opportunities</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- 2. THREE METRIC STAT CARDS (Row below banner) -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <!-- Card 1: AI Match Score -->
             <div class="metric-stat-card flex flex-col justify-between">
               <div class="flex items-center justify-between mb-2">
@@ -805,7 +881,7 @@
 
           <!-- 3. RECOMMENDED FOR YOU (3 Pastel Cards & Feed Tabs) -->
           <div class="anim-fade-up">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
               <!-- Feed Tabs: Recommended Matches | Active Applications | Saved Bookmarks -->
               <div class="flex items-center gap-1.5 p-1 bg-white border border-[#E8E2D8] rounded-xl shadow-xs">
                 <button
@@ -858,95 +934,19 @@
             </div>
 
             <!-- Description under active tab -->
-            <p id="feed-tab-subheading" class="text-[11px] text-[#6B7280] -mt-1.5 mb-3">
+            <p id="feed-tab-subheading" class="text-[11px] text-[#6B7280] mb-6">
               Opportunities handpicked for your profile and academic goals.
             </p>
 
             <!-- Opportunities Cards Grid (3 across, pastel cards) -->
-            <div id="recommended-cards-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div id="recommended-cards-grid" class="grid grid-cols-1 md:grid-cols-3 gap-8">
               <!-- Dynamically populated via renderRecommendedCards() in app.js -->
-            </div>
-          </div>
-
-          <!-- 4. EXPLORE BY CATEGORY CARDS (Interactive Category Filter) -->
-          <div class="anim-fade-up">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-base font-semibold text-[#181B28]">Explore by category</h3>
-              <button onclick="filterByCategory('All', null)" class="text-xs text-[#1E60D5] hover:underline font-medium cursor-pointer">
-                All categories
-              </button>
-            </div>
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" id="category-cards-grid">
-              <!-- 1: Scholarships (Active) -->
-              <div class="category-card active-cat" data-category="Scholarships" onclick="filterByCategory('Scholarships', this)">
-                <div class="cat-icon-container cat-icon-gold">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="1.8">
-                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 10 3 12 0v-5"/>
-                  </svg>
-                </div>
-                <div class="min-w-0">
-                  <p class="cat-title">Scholarships</p>
-                  <p class="cat-count">1.2k+ opportunities</p>
-                </div>
-              </div>
-
-              <!-- 2: Internships -->
-              <div class="category-card" data-category="Internships" onclick="filterByCategory('Internships', this)">
-                <div class="cat-icon-container cat-icon-purple">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
-                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-                  </svg>
-                </div>
-                <div class="min-w-0">
-                  <p class="cat-title">Internships</p>
-                  <p class="cat-count">3.4k+ opportunities</p>
-                </div>
-              </div>
-
-              <!-- 3: Competitions -->
-              <div class="category-card" data-category="Competitions" onclick="filterByCategory('Competitions', this)">
-                <div class="cat-icon-container cat-icon-purple">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
-                    <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2"/><path d="M18 9h2a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H7c-.55 0-1 .45-1 1v1c0 .55.45 1 1 1h10c.55 0 1-.45 1-1v-1c0-.55-.45-1-1-1h-2c-.55 0-1-.45-1-1v-2.34"/><path d="M6 5h12v4a6 6 0 0 1-12 0V5z"/>
-                  </svg>
-                </div>
-                <div class="min-w-0">
-                  <p class="cat-title">Competitions</p>
-                  <p class="cat-count">1.1k+ opportunities</p>
-                </div>
-              </div>
-
-              <!-- 4: Student Offers -->
-              <div class="category-card" data-category="Student Offers" onclick="filterByCategory('Student Offers', this)">
-                <div class="cat-icon-container cat-icon-purple">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
-                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
-                  </svg>
-                </div>
-                <div class="min-w-0">
-                  <p class="cat-title">Student Offers</p>
-                  <p class="cat-count">600+ opportunities</p>
-                </div>
-              </div>
-
-              <!-- 5: International -->
-              <div class="category-card" data-category="International" onclick="filterByCategory('International', this)">
-                <div class="cat-icon-container cat-icon-purple">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E60D5" stroke-width="1.8">
-                    <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-                  </svg>
-                </div>
-                <div class="min-w-0">
-                  <p class="cat-title">International</p>
-                  <p class="cat-count">800+ opportunities</p>
-                </div>
-              </div>
             </div>
           </div>
 
           <!-- 5. TRENDING THIS WEEK (4 cards across) -->
           <div class="anim-fade-up">
-            <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center justify-between mb-6">
               <h3 class="text-base font-semibold flex items-center gap-1.5 text-[#181B28]">
                 <span>📈 Trending this week</span>
               </h3>
@@ -959,14 +959,14 @@
             </div>
 
             <!-- Trending 4 Cards Grid -->
-            <div id="trending-cards-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div id="trending-cards-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-6">
               <!-- Dynamically populated via renderTrendingCards() in app.js -->
             </div>
           </div>
 
           <!-- 6. QUICK ACTIONS SECTION (Matches Reference Bottom) -->
-          <div class="anim-fade-up pt-1 pb-4">
-            <div class="mb-2">
+          <div class="anim-fade-up pt-2 pb-14">
+            <div class="mb-4">
               <h4 class="text-xs font-semibold text-[#181B28] flex items-center gap-1.5">
                 <span class="text-[#D4AF37]">✦</span> Quick actions
               </h4>
@@ -998,13 +998,13 @@
       <!-- ▌RIGHT SIDEBAR (Shrinkable Info Bar with All Features Preserved) ▌ -->
       <aside
         id="right-sidebar"
-        class="overflow-y-auto p-4 space-y-4"
+        class="overflow-y-auto p-6 space-y-6"
         style="background-color: var(--bg-canvas);"
       >
         <!-- Header with Shrink Button -->
         <div class="flex items-center justify-between pb-2 border-b border-[#E8E2D8] mb-1 flex-shrink-0">
           <div class="flex items-center gap-1.5">
-            <span class="text-xs font-bold text-[#181B28]">✦ Student Profile &amp; AI</span>
+            <button onclick="router.navigate('profile')" class="text-xs font-bold text-[#181B28] hover:text-[#1E60D5] cursor-pointer transition-colors" title="Open as full page">✦ Student Profile &amp; AI ↗</button>
           </div>
           <button
             id="sidebar-shrink-toggle-btn"
@@ -1020,7 +1020,7 @@
         <!-- ── CARD 1: YOUR PROFILE ── -->
         <div class="right-sidebar-card">
           <!-- Top Row -->
-          <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center justify-between mb-6">
             <h4 class="text-xs font-semibold text-[#181B28]">✦ Your profile</h4>
             <button onclick="router.navigate('setup')" class="text-xs text-[#1E60D5] hover:underline font-medium cursor-pointer">
               Edit
@@ -1167,7 +1167,7 @@
 
         <!-- ── CARD 3: UPCOMING DEADLINES ── -->
         <div class="right-sidebar-card">
-          <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center justify-between mb-6">
             <h4 class="text-xs font-semibold text-[#181B28]">Upcoming deadlines</h4>
             <button onclick="handleViewAllDeadlines()" class="text-[11px] text-[#1E60D5] hover:underline font-medium cursor-pointer">
               View all
@@ -1205,6 +1205,143 @@
         </div>
 
       </aside>
+
+      <!-- ▌STUDENT PROFILE & AI PAGE (full page view — shown at #profile) ▌ -->
+      <div id="profile-page" class="view-hidden flex-1 min-w-0 flex flex-col overflow-hidden" style="background-color: var(--bg-canvas);">
+
+        <header class="top-header-canvas flex items-center justify-between gap-4 px-10 py-5 flex-shrink-0">
+          <div>
+            <p class="text-[10px] font-bold tracking-widest uppercase text-[#B8962E] mb-1">Your space</p>
+            <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight text-[#181B28]">✦ Student Profile &amp; AI</h1>
+          </div>
+          <button onclick="router.navigate('dashboard')" class="px-3.5 py-2 rounded-full bg-white border border-[#E5E0D8] text-xs font-semibold text-[#181B28] hover:border-[#1E60D5] hover:bg-blue-50/70 shadow-xs transition-all cursor-pointer flex items-center gap-1.5">
+            <span>←</span><span>Back to dashboard</span>
+          </button>
+        </header>
+
+        <main class="flex-1 overflow-y-auto px-10 py-10">
+          <div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+
+            <!-- LEFT COLUMN: Profile + Deadlines -->
+            <div class="space-y-8">
+
+              <!-- Your profile -->
+              <div class="right-sidebar-card anim-fade-up" style="padding: 1.5rem 1.6rem;">
+                <div class="flex items-center justify-between mb-5">
+                  <h4 class="text-sm font-semibold text-[#181B28]">✦ Your profile</h4>
+                  <button onclick="router.navigate('setup')" class="text-xs text-[#1E60D5] hover:underline font-medium cursor-pointer">Edit</button>
+                </div>
+
+                <div class="flex items-center gap-4 mb-6">
+                  <div id="pp-avatar" class="w-14 h-14 rounded-full bg-[#1E60D5] flex items-center justify-center text-base font-bold text-white shadow-sm flex-shrink-0">AM</div>
+                  <div class="min-w-0">
+                    <p id="pp-name" class="text-base font-bold text-[#181B28] leading-tight">Adarsh Maurya</p>
+                    <div class="mt-1.5">
+                      <span id="pp-badge" onclick="toggleStudentLevel()" title="Click to toggle B.Tech / 12th Mode" class="inline-block text-[11px] text-[#1E60D5] bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full border border-blue-200 font-semibold cursor-pointer transition-all">B.Tech CSE, 1st Year</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mb-6">
+                  <div class="flex items-center justify-between text-xs mb-2">
+                    <span class="text-[#4B5563] font-medium">Profile completeness</span>
+                    <span id="pp-completeness" class="font-bold text-[#181B28]">75%</span>
+                  </div>
+                  <div class="w-full h-2 rounded-full bg-[#E5E7EB] overflow-hidden">
+                    <div id="pp-completeness-bar" class="h-full rounded-full bg-[#10B981] transition-all duration-700 ease-out" style="width: 75%"></div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-5 pt-5 border-t border-[#E8E2D8]">
+                  <div>
+                    <p class="text-[10px] text-[#6B7280] font-medium uppercase">Class / University</p>
+                    <p id="pp-college" class="text-sm font-semibold text-[#181B28] mt-1 truncate">USAR</p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-[#6B7280] font-medium uppercase">Age</p>
+                    <p id="pp-age" class="text-sm font-semibold text-[#181B28] mt-1 truncate">19</p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-[#6B7280] font-medium uppercase">City / State</p>
+                    <p id="pp-state" class="text-sm font-semibold text-[#181B28] mt-1 truncate">Delhi</p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] text-[#6B7280] font-medium uppercase">Country</p>
+                    <p id="pp-country" class="text-sm font-semibold text-[#181B28] mt-1 truncate">India</p>
+                  </div>
+                </div>
+
+                <div class="pt-5 mt-5 border-t border-[#E8E2D8]">
+                  <p class="text-[10px] text-[#6B7280] font-medium uppercase mb-2.5">Skills &amp; interests</p>
+                  <div id="pp-skills" class="flex flex-wrap gap-2"></div>
+                </div>
+
+                <div class="pt-5 mt-5 border-t border-[#E8E2D8]">
+                  <p class="text-[10px] text-[#6B7280] font-medium uppercase mb-2.5">Resume</p>
+                  <p id="pp-resume" class="text-xs text-[#4B5563] mb-3 truncate">No resume uploaded yet</p>
+                  <div class="flex items-center gap-2.5">
+                    <button type="button" onclick="triggerKpiResumeUpload()" class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#181B28] border border-[#E5E7EB] flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      <span>Upload Resume</span>
+                    </button>
+                    <button type="button" onclick="handleLoadSampleResume()" class="py-2 px-3 rounded-lg text-xs font-medium text-[#1E60D5] hover:bg-blue-50 border border-blue-200 transition-colors cursor-pointer whitespace-nowrap">Sample Profile</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Upcoming deadlines -->
+              <div class="right-sidebar-card anim-fade-up" style="padding: 1.5rem 1.6rem;">
+                <div class="flex items-center justify-between mb-5">
+                  <h4 class="text-sm font-semibold text-[#181B28]">Upcoming deadlines</h4>
+                  <button onclick="handleViewAllDeadlines()" class="text-xs text-[#1E60D5] hover:underline font-medium cursor-pointer">View all</button>
+                </div>
+                <div id="pp-deadlines" class="space-y-3"></div>
+              </div>
+            </div>
+
+            <!-- RIGHT COLUMN: AI Assistant -->
+            <div class="space-y-8">
+              <div class="right-sidebar-card anim-fade-up space-y-5" style="padding: 1.5rem 1.6rem;">
+                <div class="flex items-center justify-between">
+                  <h4 class="text-sm font-semibold text-[#181B28]">✦ AI Assistant (Beta)</h4>
+                  <span class="text-[10px] px-2 py-0.5 rounded-md bg-purple-50 text-[#7C3AED] font-semibold border border-purple-200">Beta</span>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-[#181B28]">Hey <span id="pp-ai-name">Adarsh</span>! 👋</p>
+                  <p class="text-sm text-[#4B5563] leading-relaxed mt-1">
+                    I found <span class="text-[#D4AF37] font-semibold">3 new opportunities</span> that match your profile and interests.
+                  </p>
+                </div>
+
+                <div onclick="openDetailDrawer('reliance')" class="top-match-card rounded-xl p-3.5 flex items-center justify-between gap-3 cursor-pointer border border-[#D4AF37]/40 hover:border-[#D4AF37] transition-all bg-[#FFFDF9]">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0 text-[#B8962E] text-sm font-bold">★</div>
+                    <div class="min-w-0">
+                      <p class="text-[10px] text-[#B8962E] font-bold uppercase tracking-wider leading-none">Top match</p>
+                      <p class="text-sm font-bold text-[#181B28] truncate leading-tight mt-1">Reliance Foundation</p>
+                      <p class="text-[11px] text-[#6B7280] leading-none mt-1">92% match • May 31</p>
+                    </div>
+                  </div>
+                  <span class="text-sm text-[#D4AF37] font-bold">→</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <button onclick="router.navigate('dashboard'); filterByCategory('Scholarships')" class="quick-action-pill py-2 px-3 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] text-xs text-[#374151] font-medium flex items-center gap-1 justify-center transition-colors cursor-pointer truncate"><span>🎓 Scholarships</span></button>
+                  <button onclick="openVerificationModal()" class="quick-action-pill py-2 px-3 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] text-xs text-[#374151] font-medium flex items-center gap-1 justify-center transition-colors cursor-pointer truncate"><span>✓ Eligibility</span></button>
+                  <button onclick="openAiChatModal(); sendQuickAiPrompt('How can I optimize my resume for scholarships?')" class="quick-action-pill py-2 px-3 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] text-xs text-[#374151] font-medium flex items-center gap-1 justify-center transition-colors cursor-pointer truncate"><span>📝 Resume Tip</span></button>
+                  <button onclick="router.navigate('dashboard'); filterByCategory('Competitions')" class="quick-action-pill py-2 px-3 rounded-full bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] text-xs text-[#374151] font-medium flex items-center gap-1 justify-center transition-colors cursor-pointer truncate"><span>🏆 Hackathons</span></button>
+                </div>
+
+                <button onclick="openAiChatModal()" class="btn-primary-blue w-full justify-center text-sm py-2.5 rounded-lg font-semibold cursor-pointer">
+                  <span>Ask Iris</span><span class="text-sm">→</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </main>
+      </div>
+
 
     </div>
 
@@ -1705,6 +1842,6 @@
   </section>
 
   <!-- Application Logic & API Client -->
-  <script src="js/app.js?v=2.5"></script>
+  <script src="js/app.js?v=2.6"></script>
 </body>
 </html>
