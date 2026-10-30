@@ -4098,6 +4098,10 @@
   window.openLiveVerificationDrawer = openLiveVerificationDrawer;
   window.openApplyOptionsModal = openApplyOptionsModal;
   window.closeApplyOptionsModal = closeApplyOptionsModal;
+  window.irisState = state;
+  window.getBrandLogoMarkup = getBrandLogoMarkup;
+  window.getApplyUrls = getApplyUrls;
+  window.updateUserDisplay = updateUserDisplay;
   
   // ══════════════════════════════════════════════════════════════════
   // DYNAMIC OPPORTUNITY MATCHER (CLAMPED 65–99%)
