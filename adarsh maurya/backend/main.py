@@ -3,7 +3,7 @@ Main FastAPI application for IRIS one — Student Opportunity Matching Platform.
 Provides complete REST API endpoints for authentication, opportunity discovery,
 matching algorithm scoring, bookmarks, applications, dashboard statistics, and search.
 """
-
+from web_search import search_web_opportunities
 import json
 import os
 import sqlite3
@@ -152,6 +152,11 @@ resume_rate_limiter = SlidingWindowRateLimiter(
     scope="Resume analysis upload rate limit",
 )
 
+chat_rate_limiter = SlidingWindowRateLimiter(
+    max_requests=30,
+    window_seconds=600,
+    scope="AI assistant rate limit",
+)
 chat_rate_limiter = SlidingWindowRateLimiter(
     max_requests=30, window_seconds=600, scope="AI assistant rate limit"
 )
@@ -432,6 +437,19 @@ def list_opportunities(
 
     return opps
 
+web_search_rate_limiter = SlidingWindowRateLimiter(
+    max_requests=20,
+    window_seconds=600,
+    scope="Web search rate limit",
+)
+
+
+@app.get("/api/opportunities/web-search", dependencies=[Depends(web_search_rate_limiter.check)])
+async def web_search_route(q: str = Query(..., min_length=3, max_length=120)):
+    try:
+        return await search_web_opportunities(q)
+    except Exception as e:
+        return {"results": [], "mode": "error", "error": str(e)[:120]}
 
 @app.get("/api/opportunities/{opportunity_id}")
 def get_opportunity(

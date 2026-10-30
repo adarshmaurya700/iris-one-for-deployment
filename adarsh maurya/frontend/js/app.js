@@ -877,7 +877,7 @@
       };
 
       try {
-        const isLongRunning = ['/resume/analyze', '/opportunities/discover-and-verify', '/verify-opportunity', '/opportunities/match'].some(p => endpoint.includes(p));
+        const isLongRunning = ['/resume/analyze', '/opportunities/discover-and-verify', '/verify-opportunity', '/opportunities/match', '/opportunities/web-search'].some(p => endpoint.includes(p));
         const timeoutMs = isLongRunning ? 60000 : 2500;
 
         const controller = new AbortController();
@@ -2303,30 +2303,64 @@
     }).join('');
   }
 
-  function renderDeadlinesList() {
-    const container = document.getElementById('deadlines-list-container');
-    if (!container) return;
+  
+function renderDeadlinesList() {
+  const container = document.getElementById('deadlines-list-container');
+  if (!container) return;
 
-    container.innerHTML = state.deadlines.map(item => {
-      const opp = state.opportunities.find(o => o.id === item.oppId || String(o.id) === String(item.oppId)) || {
-        id: item.oppId,
-        title: item.title,
-        provider: item.title
-      };
-      const iconMarkup = getBrandLogoMarkup(opp, 'w-8 h-8 rounded-lg');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-      return `
-        <div class="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-black/5 transition-colors cursor-pointer group" onclick="openDetailDrawer('${item.oppId}')">
-          ${iconMarkup}
-          <div class="flex-1 min-w-0">
-            <p class="text-xs font-bold text-[#181B28] group-hover:text-[#1E60D5] transition-colors truncate leading-tight">${item.title}</p>
-            <p class="text-[10px] text-[#6B7280] leading-tight mt-0.5">${item.date}</p>
-          </div>
-          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${item.badgeClass || 'bg-amber-100 text-amber-800'}">${item.badge}</span>
+  container.innerHTML = state.deadlines.map(item => {
+    const opp = state.opportunities.find(o => o.id === item.oppId || String(o.id) === String(item.oppId)) || {
+      id: item.oppId,
+      title: item.title,
+      provider: item.title
+    };
+
+    const iconMarkup = getBrandLogoMarkup(opp, 'w-8 h-8 rounded-lg');
+    const urls = getApplyUrls(opp);
+    const siteUrl = urls.officialUrl || opp.portalUrl || opp.sourceUrl || '#';
+
+    // Compute days left from the real deadline instead of the hardcoded badge
+    let badgeText = item.badge;
+    let badgeClass = item.badgeClass || 'bg-amber-100 text-amber-800';
+    if (opp.deadlineIso) {
+      const due = new Date(opp.deadlineIso);
+      if (!isNaN(due)) {
+        const days = Math.ceil((due - today) / 86400000);
+        if (days < 0) {
+          badgeText = 'Closed';
+          badgeClass = 'text-zinc-600 bg-zinc-100 border border-zinc-200';
+        } else {
+          badgeText = days === 0 ? 'Due today' : `${days} day${days === 1 ? '' : 's'} left`;
+          badgeClass = days <= 7
+            ? 'text-red-700 bg-red-100 border border-red-200'
+            : days <= 30
+              ? 'text-purple-700 bg-purple-100 border border-purple-200'
+              : 'text-blue-700 bg-blue-100 border border-blue-200';
+        }
+      }
+    }
+
+    return `
+      <a
+        href="${siteUrl}"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Open official site: ${opp.title}"
+        class="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-black/5 transition-colors cursor-pointer group no-underline text-inherit"
+      >
+        ${iconMarkup}
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-bold text-[#181B28] group-hover:text-[#1E60D5] transition-colors truncate leading-tight">${item.title}</p>
+          <p class="text-[10px] text-[#6B7280] leading-tight mt-0.5">${item.date}</p>
         </div>
-      `;
-    }).join('');
-  }
+        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${badgeClass}">${badgeText}</span>
+      </a>
+    `;
+  }).join('');
+}
 
   // ══════════════════════════════════════════════════════════════════
   // FILTERING, SEARCH, CATEGORY CARDS
@@ -2372,24 +2406,83 @@
     showToast(`Filtered by ${categoryName} (${filtered.length} found)`, 'info', 1800);
   }
 
+    // ══════════════════════════════════════════════════════════════════
+  // GLOBAL SEARCH: instant local filter + live web results (debounced)
+  // ══════════════════════════════════════════════════════════════════
+  let webSearchTimer = null;
+  let webSearchSeq = 0;
+
+  function escapeHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function renderLiveWebCard(item) {
+    return `
+      <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer"
+         class="card-pastel-blue group no-underline block">
+        <div class="flex items-center justify-between mb-3">
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#111625] text-white">✦ ${escapeHtml(item.type)}</span>
+          <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">Live from web</span>
+        </div>
+        <h4 class="text-sm font-bold text-[#181B28] line-clamp-2 group-hover:text-[#1E60D5]">${escapeHtml(item.title)}</h4>
+        <p class="text-[11px] text-[#4B5563] line-clamp-2 mt-1">${escapeHtml(item.snippet)}</p>
+        <p class="text-[10px] text-[#6B7280] mt-2 font-mono">${escapeHtml(item.provider)}</p>
+      </a>`;
+  }
+
+  async function runWebSearch(query, seq) {
+    const grid = document.getElementById('recommended-cards-grid');
+    if (!grid) return;
+
+    grid.insertAdjacentHTML('beforeend', `
+      <div id="web-search-status" class="col-span-full text-xs text-[#6B7280] py-2">
+        Searching the live web for "${escapeHtml(query)}"...
+      </div>`);
+
+    const data = await api.request(`/opportunities/web-search?q=${encodeURIComponent(query)}`);
+    if (seq !== webSearchSeq) return; // user kept typing, drop stale results
+
+    document.getElementById('web-search-status')?.remove();
+
+    if (!data || !Array.isArray(data.results) || data.results.length === 0) {
+      grid.insertAdjacentHTML('beforeend', `
+        <div class="col-span-full text-xs text-[#6B7280] py-2">No live web results for "${escapeHtml(query)}".</div>`);
+      return;
+    }
+
+    grid.insertAdjacentHTML('beforeend', `
+      <div class="col-span-full text-[11px] font-bold uppercase tracking-wider text-[#92400E] pt-2">
+        Live web results${data.cached ? ' (cached)' : ''}
+      </div>`);
+    grid.insertAdjacentHTML('beforeend', data.results.map(renderLiveWebCard).join(''));
+  }
+
   function handleGlobalSearch(query) {
-    state.searchQuery = (query || '').toLowerCase().trim();
-    if (!state.searchQuery) {
+    const raw = (query || '').trim();
+    const q = raw.toLowerCase();
+    const seq = ++webSearchSeq;
+    clearTimeout(webSearchTimer);
+
+    if (!q) {
       renderRecommendedCards();
       return;
     }
 
-    const matched = state.opportunities.filter(opp => {
-      return (
-        opp.title.toLowerCase().includes(state.searchQuery) ||
-        opp.provider.toLowerCase().includes(state.searchQuery) ||
-        opp.category.toLowerCase().includes(state.searchQuery) ||
-        opp.type.toLowerCase().includes(state.searchQuery) ||
-        opp.tags.some(t => t.toLowerCase().includes(state.searchQuery))
-      );
-    });
-
+    state.searchQuery = q;
+    const matched = state.opportunities.filter(opp =>
+      opp.title.toLowerCase().includes(q) ||
+      opp.provider.toLowerCase().includes(q) ||
+      opp.category.toLowerCase().includes(q) ||
+      opp.type.toLowerCase().includes(q) ||
+      opp.tags.some(t => t.toLowerCase().includes(q))
+    );
     renderRecommendedCards(matched, true);
+
+    if (raw.length >= 3) {
+      webSearchTimer = setTimeout(() => runWebSearch(raw, seq), 700);
+    }
   }
 
   function handleViewAllOpportunities() {
