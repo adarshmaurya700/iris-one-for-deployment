@@ -1,5 +1,6 @@
 """Local profile, application-guide, tracking and RFC 5545 services."""
 import json
+from contextvars import ContextVar
 from datetime import date, datetime, timedelta, timezone
 from fastapi import HTTPException
 from catalog import json_value, utc_now
@@ -16,6 +17,8 @@ DEMO_PROFILE = {
     'profile_completeness': 85,
 }
 
+guest_identity = ContextVar('iris_guest_identity', default='default_student')
+
 
 def student_identity(current_user=None, requested='default_student'):
     if current_user:
@@ -25,13 +28,13 @@ def student_identity(current_user=None, requested='default_student'):
         return identity
     if requested != 'default_student':
         raise HTTPException(401, 'Sign in to access a personal student profile.')
-    return requested
+    return guest_identity.get()
 
 
 def save_student_profile(db, student_id, profile, resume_text=None):
     existing = db.execute('SELECT * FROM student_profiles WHERE id = ?', (student_id,)).fetchone()
     data = dict(existing) if existing else {'id': student_id}
-    allowed = {'name', 'email', 'academic_stage', 'institution', 'academic_tier', 'state_domicile', 'age', 'class_12_pct', 'family_income_inr', 'nirf_top_50', 'skills_json', 'resume_text', 'profile_completeness', 'embedding_json'}
+    allowed = {'name', 'email', 'academic_stage', 'institution', 'academic_tier', 'state_domicile', 'age', 'class_12_pct', 'family_income_inr', 'nirf_top_50', 'skills_json', 'resume_text', 'profile_completeness', 'embedding_json', 'country', 'graduation_year', 'domains_json', 'areas_of_interest', 'resume_filename', 'resume_uploaded_at', 'onboarding_complete', 'preferences_json'}
     data.update({key: val for key, val in profile.items() if key in allowed})
     mappings = {'college': 'institution', 'state': 'state_domicile', 'completeness': 'profile_completeness'}
     for key, dest in mappings.items():
@@ -41,7 +44,7 @@ def save_student_profile(db, student_id, profile, resume_text=None):
     if raw_tier and raw_tier not in ('TIER_1_SCHOOL', 'TIER_2_UG_PG'):
         data['academic_stage'] = raw_tier
         data['academic_tier'] = 'TIER_1_SCHOOL' if any(w in raw_tier.lower() for w in ('school', '12th', 'class 12')) else 'TIER_2_UG_PG'
-    skills = profile.get('extracted_skills') or profile.get('skills')
+    skills = profile.get('extracted_skills') if 'extracted_skills' in profile else profile.get('skills')
     if skills is not None:
         data['skills_json'] = json.dumps(skills if isinstance(skills, list) else [s.strip() for s in skills.split(',')])
     if profile.get('family_income_lpa') is not None:
@@ -58,11 +61,12 @@ def save_student_profile(db, student_id, profile, resume_text=None):
         data['resume_text'] = resume_text
     if data.get('nirf_top_50') is not None:
         data['nirf_top_50'] = int(bool(data['nirf_top_50']))
-    data['embedding_json'] = json.dumps(compute_deterministic_embedding(' '.join(json_value(data.get('skills_json'))) + ' ' + str(data.get('academic_stage') or '')))
+    embedding_text = ' '.join(json_value(data.get('skills_json')) + json_value(data.get('domains_json'))) + ' ' + str(data.get('academic_stage') or '') + ' ' + str(data.get('areas_of_interest') or '')
+    data['embedding_json'] = json.dumps(compute_deterministic_embedding(embedding_text))
     columns = list(data)
     db.execute('INSERT INTO student_profiles (' + ', '.join(columns) + ') VALUES (' + ', '.join('?' for _ in columns) + ') ON CONFLICT(id) DO UPDATE SET ' + ', '.join(f'{key} = excluded.{key}' for key in columns if key != 'id'), tuple(data[key] for key in columns))
     db.commit()
-    return data
+    return dict(db.execute('SELECT * FROM student_profiles WHERE id = ?', (student_id,)).fetchone())
 
 
 def get_student_profile(db, student_id='default_student', current_user=None):
@@ -74,7 +78,7 @@ def get_student_profile(db, student_id='default_student', current_user=None):
 
 
 def tracked_exclusive_titles(db, student_id):
-    rows = db.execute("SELECT o.title FROM tracked_applications t JOIN opportunities o ON t.opportunity_id = o.id WHERE t.student_id = ? AND t.status IN ('In Progress', 'Applied') AND o.is_exclusive_tuition_grant = 1", (student_id,)).fetchall()
+    rows = db.execute("SELECT o.title FROM tracked_applications t JOIN opportunities o ON t.opportunity_id = o.id WHERE t.student_id = ? AND t.status NOT IN ('Saved', 'Rejected') AND o.is_exclusive_tuition_grant = 1", (student_id,)).fetchall()
     return [row[0] for row in rows]
 
 
@@ -108,6 +112,9 @@ def track(db, opportunity_id, student_id, status, documents, current_user=None):
     if not opp:
         raise HTTPException(404, 'Opportunity not found.')
     required = json_value(opp['required_documents_json'])
+    if documents is None:
+        existing = db.execute('SELECT checked_documents_json FROM tracked_applications WHERE student_id = ? AND opportunity_id = ?', (student_id, opp['id'])).fetchone()
+        documents = json_value(existing[0]) if existing else []
     checked = list(dict.fromkeys(doc for doc in documents if doc in required))
     db.execute('''INSERT INTO tracked_applications (student_id, opportunity_id, status, checked_documents_json, updated_at)
         VALUES (?, ?, ?, ?, ?) ON CONFLICT(student_id, opportunity_id) DO UPDATE SET
@@ -120,7 +127,7 @@ def track(db, opportunity_id, student_id, status, documents, current_user=None):
             db.execute("INSERT INTO applications (user_id, opportunity_id, status) VALUES (?, ?, ?) ON CONFLICT(user_id, opportunity_id) DO UPDATE SET status = excluded.status", (current_user['id'], opp['id'], status))
     db.commit()
     payload = how_to_apply(db, opportunity_id, student_id, current_user)
-    payload['tracked_count'] = db.execute("SELECT COUNT(*) FROM tracked_applications WHERE student_id = ? AND status IN ('In Progress', 'Applied')", (student_id,)).fetchone()[0]
+    payload['tracked_count'] = db.execute("SELECT COUNT(*) FROM tracked_applications WHERE student_id = ? AND status != 'Saved'", (student_id,)).fetchone()[0]
     return payload
 
 

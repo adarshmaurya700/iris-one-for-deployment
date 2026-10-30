@@ -157,3 +157,10 @@ def get_optional_current_user(request: Request, db: sqlite3.Connection = Depends
         return user_dict
     except Exception:
         return None
+
+
+def get_workspace_user(request: Request, db=Depends(db_session)):
+    """Anonymous demo access is explicit; an expired token must not write to the demo."""
+    if request.headers.get('Authorization'):
+        return get_current_user(request, db)
+    return None

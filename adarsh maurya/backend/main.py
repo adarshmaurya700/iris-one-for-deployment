@@ -8,9 +8,11 @@ import json
 import os
 import sqlite3
 import time
+import uuid
+import jwt
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 
 import env_loader  # noqa: F401
@@ -27,11 +29,13 @@ from catalog import today_in_india
 from seed_data import seed_opportunities, upsert_opportunity
 from matcher import calculate_match, score_catalog, parse_eligibility, eligibility_checklist, detect_conflicts
 from auth import (
+    SECRET_KEY,
     hash_password,
     verify_password,
     create_token,
     get_current_user,
     get_optional_current_user,
+    get_workspace_user,
 )
 from tinyfish_pipeline import run_verification_pipeline, discover_and_verify
 from gemini_extractor import verified_to_db_row
@@ -81,11 +85,34 @@ app = FastAPI(
 )
 from api_extensions import router as application_router
 app.include_router(application_router)
+from frontend_api import router as frontend_router
+app.include_router(frontend_router)
 
 # Security Headers Middleware
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
+    from application_service import guest_identity
+    cookie = request.cookies.get('iris_workspace', '')
+    identity = None
+    if cookie:
+        try:
+            payload = jwt.decode(cookie, SECRET_KEY, algorithms=['HS256'])
+            candidate = payload.get('sub', '')
+            if isinstance(candidate, str) and candidate.startswith('guest:') and len(candidate) == 38:
+                identity = candidate
+        except jwt.PyJWTError:
+            pass
+    new_cookie = identity is None
+    if new_cookie:
+        identity = 'guest:' + uuid.uuid4().hex
+        cookie = jwt.encode({'sub': identity, 'exp': datetime.now(timezone.utc) + timedelta(days=7)}, SECRET_KEY, algorithm='HS256')
+    context = guest_identity.set(identity)
+    try:
+        response = await call_next(request)
+    finally:
+        guest_identity.reset(context)
+    if new_cookie:
+        response.set_cookie('iris_workspace', cookie, max_age=7 * 86400, httponly=True, secure=request.url.scheme == 'https', samesite='lax')
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     return response
@@ -932,7 +959,7 @@ async def analyze_resume_endpoint(
     request: Request,
     file: Optional[UploadFile] = File(None),
     use_sample: Optional[bool] = Form(None),
-    current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
+    current_user: Optional[Dict[str, Any]] = Depends(get_workspace_user),
     db: sqlite3.Connection = Depends(db_session),
 ):
     """
@@ -994,7 +1021,8 @@ async def analyze_resume_endpoint(
     if raw_text is None and data:
         from resume_analyzer import extract_text_from_bytes
         raw_text = extract_text_from_bytes(filename, data)
-    save_student_profile(db, identity, profile, resume_text=raw_text or '')
+    from catalog import utc_now
+    saved_profile = save_student_profile(db, identity, {**profile, 'resume_filename': filename, 'resume_uploaded_at': utc_now()}, resume_text=raw_text or '')
 
     if current_user and db:
         try:
@@ -1006,6 +1034,7 @@ async def analyze_resume_endpoint(
     return {
         "success": True,
         "profile": profile,
+        "student_profile": saved_profile,
         "filename": filename,
     }
 
