@@ -20,7 +20,7 @@ Initial issues, severity, source evidence and intended fixes are in [AUDIT.md](A
 | Gemini | **Not configured; live untested** | No GEMINI_API_KEY. Mocked success, fenced/malformed JSON, outage and cascade behavior tested. Actual account/model availability cannot be confirmed. |
 | TinyFish | **Failed** | One real TinySearch call returned HTTP 401. Live Fetch/Agent are **untested** because the probe stopped. Mocked content/completion/no-retry tests passed. |
 | Ask IRIS | **Working locally** | Scoped retrieval, stored sources, eligibility/conflicts, score explanation, SSE and local fallback passed. Cloud/Ollama success is mocked, not a real inference claim. |
-| Database | **Working: SQLite** | WAL/schema, scoped saves/tracking/export, profile clearing, refresh and app-lifespan restart persistence passed. PostgreSQL is **untested locally** without a disposable URL; CI provisions pgvector. |
+| Database | **Working: SQLite and PostgreSQL/pgvector** | SQLite persistence/ownership/restart tests passed locally. Disposable PostgreSQL/pgvector HTTP, schema and vector integration passed in GitHub CI. No local PostgreSQL service was configured. |
 | Authentication | **Working locally** | Signup/login, bcrypt, byte limits, rejecting hashes/forged tokens, account/guest isolation, calendar ownership and production guards passed. Not an independent penetration test. |
 | Scheduler | **Working locally** | 43,200-second interval, owner/lease exclusion, offline sync and start/stop passed. No twelve-hour provider soak or production failover benchmark. |
 | Resume extraction | **Working locally** | TXT/DOCX/PDF parsing/persistence passed; malformed/empty/oversized/compressed expansion cases reject. Gemini live extraction is **untested**. Image-only PDF OCR is unsupported. |
@@ -42,12 +42,14 @@ After fixes:
 - `npm audit`: **zero known reported vulnerabilities**. [Result](npm-audit.json).
 - Python parsing and Git whitespace checks passed. Docker/Render/Railway configuration was reviewed but not executed/deployed locally.
 
+GitHub CI subsequently passed **both backend/browser and PostgreSQL jobs** for implementation commit `592be0cde4cc77fb24a78e3c62ba913685334cf8`: [verified workflow run](https://github.com/adarshmaurya700/iris-one-for-deployment/actions/runs/41175834608). This adds Linux/Python 3.11, actual Chromium and disposable PostgreSQL/pgvector coverage to the local checks. This report update changes documentation only.
+
 Warnings: current Starlette TestClient httpx deprecation and an intentionally forged old short JWT key in a rejection test. Neither is suppressed in application code.
 
 ## Remaining limitations
 
 1. Replace the rejected TinyFish credential and configure Gemini before claiming live discovery/verification. Provider/account quotas and the full live pipeline remain unverified. Restricted sources are not bypassed.
-2. PostgreSQL needs the disposable service/CI check; Docker needs a capable host. No deployment, independent penetration test, concurrency benchmark or sustained provider soak was performed.
+2. PostgreSQL passed its disposable CI check. Docker image execution still needs a capable host. No deployment, independent penetration test, concurrency benchmark or sustained provider soak was performed.
 3. Fixtures/cached terms do not prove current eligibility, pricing, availability or award-combination permission. Self-reported student facts do not replace official document review.
 4. Local parsing is conservative and has no OCR. Students should review extraction. Configured Gemini resume extraction sends supplied text to the provider.
 5. Limits/diagnostics are process-local. Multiple replicas need shared limiting and durable monitoring. The separate provider-probe process has its own retained report.
