@@ -396,7 +396,7 @@
     document.body.classList.toggle("reduce-motion", !!prefs.reduce_motion);
     document.body.classList.toggle("compact-cards", !!prefs.compact_cards);
     $("account-popover").innerHTML =
-      `<a href="#profile">${icon("user")}Your profile</a><a href="#onboarding/1">${icon("cap")}Edit your details</a><a href="#settings">${icon("settings")}Preferences</a>${S.token ? `<button data-action="logout">${icon("logout")}Sign out</button>` : `<a href="#login">${icon("lock")}Sign in / create account</a>`}`;
+      `<a href="#profile">${icon("user")}Your profile</a><a href="#saved">${icon("bookmark")}Saved opportunities</a><a href="#onboarding/1">${icon("cap")}Edit your details</a><a href="#settings">${icon("settings")}Preferences</a>${S.token ? `<button data-action="logout">${icon("logout")}Sign out</button>` : `<a href="#login">${icon("lock")}Sign in / create account</a>`}`;
   }
   function card(opp) {
     const id = idOf(opp),
@@ -461,7 +461,7 @@
       <div class="home-hero-art" aria-hidden="true"><svg viewBox="668 76 365 257" preserveAspectRatio="xMidYMid slice" focusable="false"><image href="assets/homepage-reference.png" x="0" y="0" width="1046" height="690" /></svg></div>
       <div class="home-hero-copy"><span class="home-eyebrow">YOUR OPPORTUNITY COMPANION</span><h1 id="home-heading"><span>Discover. Apply.</span> <em>Grow.</em></h1><p>A personalized platform to discover scholarships, internships, hackathons and opportunities that fit you.</p>
       <form id="home-search-form" class="home-search" role="search"><label class="sr-only" for="home-search-input">Search opportunities, skills or organizations</label>${icon("search")}<input id="home-search-input" type="search" placeholder="Search opportunities, skills or organizations..." autocomplete="off" maxlength="200" /><button type="submit" aria-label="Search opportunities">${icon("search")}</button></form></div></section>
-      <nav class="home-categories" aria-label="Opportunity categories">${shortcuts.map(([category, symbol], index) => `<button type="button" data-action="home-category" data-category="${category}" class="home-category category-tone-${index % 3}">${icon(symbol)}<span>${category}</span></button>`).join("")}</nav>
+      <nav class="home-categories" aria-label="Opportunity categories">${shortcuts.map(([category, symbol], index) => `<button type="button" data-action="home-category" data-home-category="${category}" class="home-category category-tone-${index % 3}">${icon(symbol)}<span>${category}</span></button>`).join("")}</nav>
       <section class="home-featured" aria-labelledby="home-featured-heading"><div class="home-section-heading"><h2 id="home-featured-heading">Top opportunities for you</h2><a href="#opportunities">View all ${icon("arrow")}</a></div><div class="home-featured-grid">${top.map(homeFeatureCard).join("") || empty("Your next opportunity starts here", "Add your interests or explore the catalog to discover a possibility that fits you.", "explore", "Explore opportunities")}</div></section>`;
   }
   function filteredOpportunities() {
@@ -1055,6 +1055,7 @@
         `<div class="onboarding-container wizard-step-two">${meta}${heading("onboarding", "FOLLOW YOUR CURIOSITY", "What are you looking forward to?", "Choose the possibilities that interest you. You can pick more than one — and change your mind later.")}
       <div class="surface wizard-card"><h2>${icon("compass")}What opportunities are you interested in?</h2><p class="section-copy">A direction is all we need. We’ll help you explore the rest.</p><div class="interest-grid">${categories
         .slice(1)
+        .filter((category) => category !== "Olympiads")
         .map(
           (category) =>
             `<button class="interest-card ${w.domains.has(category) ? "selected" : ""}" data-action="interest" data-domain="${esc(category)}" aria-pressed="${w.domains.has(category)}"><span class="interest-check">${w.domains.has(category) ? icon("check") : ""}</span>${icon(categoryIcons[category])}<strong>${category}</strong><p>${categoryDescriptions[category]}</p></button>`,
@@ -1951,10 +1952,10 @@
         if (S.view === "detail") await loadDetail(S.detailId, true);
         break;
       case "home-category":
-        if (el.dataset.category === "AI Assistant") navigate("ai-assistant");
+        if (el.dataset.homeCategory === "AI Assistant") navigate("ai-assistant");
         else {
           S.filter = {
-            category: el.dataset.category,
+            category: el.dataset.homeCategory,
             query: "",
             location: "",
             deadline: "",

@@ -5134,3 +5134,9 @@ body.is-home {
     font-size: 9px;
   }
 }
+
+/* Let the homepage fill the shared shell without inheriting workspace width limits. */
+.is-home #main-content { width:100%; min-width:0; align-items:stretch; }
+.is-home #view-home { width:100%; max-width:none; min-width:0; margin:0; }
+.home-hero-copy, .home-featured, .home-categories { min-width:0; }
+.home-section-heading h2 { font-family:Inter,system-ui,sans-serif; }
