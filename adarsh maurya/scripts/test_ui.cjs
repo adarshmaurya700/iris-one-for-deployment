@@ -80,7 +80,16 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       assert(await page.locator(`#view-${view}`).isVisible());
     }
     async function nav(view) {
-      await page.locator(`#primary-navigation a[href="#${view}"]`).click();
+      const side = page.locator(`#primary-navigation a[href="#${view}"]`);
+      const top = page.locator(`#home-navigation a[href="#${view}"]`);
+      if (await side.isVisible()) await side.click();
+      else if (await top.isVisible()) await top.click();
+      else if (await page.locator('#menu-toggle').isVisible()) {
+        await page.locator('#menu-toggle').click(); await side.click();
+      } else {
+        await page.locator('#account-trigger').click();
+        await page.locator(`#account-popover a[href="#${view}"]`).click();
+      }
       await singleView(view);
     }
     async function screenshot(name) {
@@ -92,11 +101,13 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await page.goto(`${base}/#home`, { waitUntil: "domcontentloaded" });
     await singleView("home");
     assert(
-      (await page.locator("#home-heading").innerText()).includes("Adarsh"),
+      (await page.locator("#home-heading").innerText()).includes("Discover. Apply."),
     );
     assert(
       (await page.locator("#runtime-banner").innerText()).includes("DEMO MODE"),
     );
+    assert.equal(await page.locator(".featured-opportunity").count(),2);
+    assert.equal(await page.locator(".home-category").count(),7);
     await screenshot("home-desktop");
     await nav("profile");
     assert.equal(

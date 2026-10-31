@@ -17,6 +17,8 @@
         })[char],
     );
   const paths = {
+    medal:
+      '<path d="m7 3 5 7 5-7M5 3h4l3 5 3-5h4l-5 9H10Z"/><circle cx="12" cy="16" r="5"/><path d="m12 13 1 2 2 .3-1.5 1.5.4 2.2-1.9-1-1.9 1 .4-2.2L9 15.3l2-.3Z"/>',
     home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>',
     compass:
       '<circle cx="12" cy="12" r="9"/><path d="m16 8-2.5 5.5L8 16l2.5-5.5Z"/>',
@@ -219,6 +221,7 @@
     "Competitions",
     "Hackathons",
     "Student Offers",
+    "Olympiads",
     "International",
   ];
   const categoryIcons = {
@@ -228,6 +231,7 @@
     Competitions: "trophy",
     Hackathons: "code",
     "Student Offers": "gift",
+    Olympiads: "medal",
     International: "globe",
   };
   const categoryDescriptions = {
@@ -236,11 +240,13 @@
     Hackathons: "Build, collaborate, and make an impact.",
     Competitions: "Put your ideas and skills to the test.",
     "Student Offers": "Tools, credits, and a little extra support.",
+    Olympiads: "Challenge yourself and celebrate what you know.",
     International: "Discover a world beyond your campus.",
   };
   function categoryOf(opp) {
     const value =
       `${opp.category || ""} ${opp.type || ""} ${opp.title || ""}`.toLowerCase();
+    if (value.includes("olympiad")) return "Olympiads";
     if (value.includes("hackathon")) return "Hackathons";
     if (value.includes("scholar") || value.includes("grant"))
       return "Scholarships";
@@ -342,6 +348,7 @@
     setTimeout(() => el.remove(), type === "error" ? 8500 : 4500);
   }
   function updateShell() {
+    document.body.classList.toggle("is-home", S.view === "home");
     const navigation = [
       ["home", "home", "Home"],
       ["opportunities", "compass", "Opportunities"],
@@ -421,41 +428,41 @@
   function metric(value, label, symbol, view) {
     return `<a href="#${view}" class="surface metric-card"><span class="metric-icon">${icon(symbol)}</span><span><span class="metric-value">${esc(value)}</span><span class="metric-caption" style="display:block">${esc(label)}</span></span></a>`;
   }
+  function homeFeatureCard(opp) {
+    const id = idOf(opp),
+      due = deadline(opp);
+    return `<article class="featured-opportunity" data-action="open-detail" data-id="${esc(id)}" tabindex="0" role="link" aria-label="View ${esc(opp.title)}">
+      <div class="featured-head">${mark(opp)}<div class="featured-copy"><h3>${esc(opp.title)}</h3><p>${esc(opp.organization || opp.provider || "Official program")}</p></div><span class="featured-match" title="Profile compatibility, not selection probability">${icon("sparkle")}${scoreOf(opp)}% Match</span></div>
+      <div class="featured-meta"><span>${icon("calendar")}${due.iso ? esc(dateFormat(due.iso)) : "Deadline not confirmed"}</span><span>${icon("location")}${esc(opp.mode || opp.location || opp.location_state || "See official portal")}</span><span class="featured-provenance">${esc(verification(opp.verification_status)[0])}</span></div>
+    </article>`;
+  }
   function renderHome() {
-    const hour = Number(
-      new Intl.DateTimeFormat("en-GB", {
-        hour: "numeric",
-        hourCycle: "h23",
-        timeZone: "Asia/Kolkata",
-      }).format(new Date()),
-    );
-    const greeting =
-      hour < 12
-        ? "Good morning"
-        : hour < 17
-          ? "Good afternoon"
-          : "Good evening";
     const domains = S.profile?.domains || [];
-    const interested = domains.length
-      ? S.opportunities.filter(
-          (opp) =>
-            domains.includes(categoryOf(opp)) ||
-            (domains.includes("International") && isInternational(opp)),
-        )
-      : S.opportunities;
+    const interested = S.opportunities.filter(
+      (opp) =>
+        !domains.length ||
+        domains.includes(categoryOf(opp)) ||
+        (domains.includes("International") && isInternational(opp)),
+    );
     const top = [...(interested.length ? interested : S.opportunities)]
       .sort((a, b) => scoreOf(b) - scoreOf(a))
-      .slice(0, 3);
-    const dates = upcoming().slice(0, 3),
-      completeness = S.profile?.profile_completeness || 0;
+      .slice(0, 2);
+    const shortcuts = [
+      ["Hackathons", "code"],
+      ["Scholarships", "cap"],
+      ["Internships", "briefcase"],
+      ["Competitions", "trophy"],
+      ["Student Offers", "gift"],
+      ["Olympiads", "medal"],
+      ["AI Assistant", "sparkle"],
+    ];
     $("view-home").innerHTML =
-      `${heading("home", "YOUR NEXT CHAPTER", `${greeting}, ${profileName().split(" ")[0]}.`, "A little more possibility, a little less searching. Here’s what’s waiting for you.")}
-      <div class="welcome-hero"><div class="hero-content"><span class="hero-label">GREAT THINGS START WITH A SMALL STEP</span><h2>Your potential.<br />A world of possibility.</h2><p>Scholarships, experiences, and opportunities that meet you where you are — and take you a little further.</p><a class="button primary" href="#opportunities">Find your next opportunity ${icon("arrow")}</a></div><span class="hero-caption">MAKE ROOM FOR WHAT’S NEXT.</span></div>
-      <div class="metrics-grid">${metric(S.opportunities.length, "Opportunities to explore", "compass", "opportunities")}${metric(S.saved.length, "Saved for a little later", "bookmark", "saved")}${metric(S.applications.length, "Applications in progress", "briefcase", "applications")}${metric(`${completeness}%`, "Your profile strength", "chart", "profile")}</div>
-      <div class="section-heading"><div><h2>Picked with your potential in mind</h2><p>Your strongest matches from the current catalog.</p></div><a href="#opportunities">Explore all ${icon("arrow", "icon-sm")}</a></div>
-      <div class="opportunity-grid home-recommendations">${top.map(card).join("") || empty("Your next opportunity is on its way", "Refresh the catalog or try a broader search.", "reload", "Refresh catalog")}</div>
-      <div class="home-bottom"><div class="surface"><div class="home-progress-top"><h3>A little progress goes a long way</h3>${pill(`${completeness}%`, "blue")}</div><p>A fuller profile helps IRIS find a better fit for you.</p><div class="progress" role="progressbar" aria-label="Profile completeness" aria-valuenow="${completeness}" aria-valuemin="0" aria-valuemax="100"><span style="width:${completeness}%"></span></div><div class="button-row"><a href="#profile" class="button secondary small">Your profile ${icon("arrow")}</a><a href="#onboarding/1" class="text-link">Add a little more</a></div></div>
-      <div class="surface"><h3>On your radar</h3><p>A gentle reminder for the things you’re working toward.</p>${dates.length ? dates.map((opp) => `<a class="mini-deadline" href="#detail/${encodeURIComponent(idOf(opp))}"><span class="mini-date">${dateFormat(deadline(opp).iso, { day: "numeric" })}<small>${dateFormat(deadline(opp).iso, { month: "short" })}</small></span><span><strong>${esc(opp.title)}</strong><small>${esc(opp.organization || opp.provider)}</small></span>${pill(deadline(opp).label, deadline(opp).days < 8 ? "gold" : "neutral")}</a>`).join("") : `<p>No tracked deadlines yet. When you find something you love, track it here.</p><a href="#applications" class="text-link">Your application space ${icon("arrow", "icon-sm")}</a>`}</div></div>`;
+      `<section class="home-hero" aria-labelledby="home-heading">
+      <div class="home-hero-art" aria-hidden="true"><svg viewBox="668 76 365 257" preserveAspectRatio="xMidYMid slice" focusable="false"><image href="assets/homepage-reference.png" x="0" y="0" width="1046" height="690" /></svg></div>
+      <div class="home-hero-copy"><span class="home-eyebrow">YOUR OPPORTUNITY COMPANION</span><h1 id="home-heading"><span>Discover. Apply.</span> <em>Grow.</em></h1><p>A personalized platform to discover scholarships, internships, hackathons and opportunities that fit you.</p>
+      <form id="home-search-form" class="home-search" role="search"><label class="sr-only" for="home-search-input">Search opportunities, skills or organizations</label>${icon("search")}<input id="home-search-input" type="search" placeholder="Search opportunities, skills or organizations..." autocomplete="off" maxlength="200" /><button type="submit" aria-label="Search opportunities">${icon("search")}</button></form></div></section>
+      <nav class="home-categories" aria-label="Opportunity categories">${shortcuts.map(([category, symbol], index) => `<button type="button" data-action="home-category" data-category="${category}" class="home-category category-tone-${index % 3}">${icon(symbol)}<span>${category}</span></button>`).join("")}</nav>
+      <section class="home-featured" aria-labelledby="home-featured-heading"><div class="home-section-heading"><h2 id="home-featured-heading">Top opportunities for you</h2><a href="#opportunities">View all ${icon("arrow")}</a></div><div class="home-featured-grid">${top.map(homeFeatureCard).join("") || empty("Your next opportunity starts here", "Add your interests or explore the catalog to discover a possibility that fits you.", "explore", "Explore opportunities")}</div></section>`;
   }
   function filteredOpportunities() {
     const f = S.filter;
@@ -1943,6 +1950,19 @@
         await loadWorkspace();
         if (S.view === "detail") await loadDetail(S.detailId, true);
         break;
+      case "home-category":
+        if (el.dataset.category === "AI Assistant") navigate("ai-assistant");
+        else {
+          S.filter = {
+            category: el.dataset.category,
+            query: "",
+            location: "",
+            deadline: "",
+            sort: "match",
+          };
+          navigate("opportunities");
+        }
+        break;
       case "category":
         S.filter.category = el.dataset.category;
         renderResults();
@@ -2132,6 +2152,16 @@
   document.addEventListener("submit", (event) => {
     const form = event.target;
     const handler = {
+      "home-search-form": () => {
+        S.filter = {
+          category: "All Opportunities",
+          query: $("home-search-input").value.trim(),
+          location: "",
+          deadline: "",
+          sort: "match",
+        };
+        navigate("opportunities");
+      },
       "opportunity-search-form": () => {
         S.filter.query = $("opportunity-search").value.trim();
         renderResults();
@@ -2267,7 +2297,10 @@
       event.target.value = "";
       $("editable-skill-tags").innerHTML = skillTagsEditable();
     }
-    if (event.key === "Enter" && event.target.matches(".opportunity-card")) {
+    if (
+      event.key === "Enter" &&
+      event.target.matches(".opportunity-card, .featured-opportunity")
+    ) {
       event.preventDefault();
       navigate("detail", event.target.dataset.id);
     }
