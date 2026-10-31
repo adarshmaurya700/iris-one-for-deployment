@@ -22,6 +22,7 @@ Use `IRIS_MODE=live` with a separate database for genuine provider operations. N
 ## Documentation
 
 - [Technical audit](docs/AUDIT.md)
+- [Current Gemini configuration and real test report](docs/GEMINI_INTEGRATION.md)
 - [Fixes, service status and test evidence](docs/VALIDATION.md)
 - [Exact setup and deployment instructions](docs/DEPLOYMENT.md)
 - [Hackathon walkthrough and Q&A](docs/DEMO_GUIDE.md)

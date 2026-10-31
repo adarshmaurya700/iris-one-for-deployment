@@ -1,0 +1,14 @@
+{
+  "checked_at": "2026-10-31T06:37:52.791145Z",
+  "operation": "opportunity_extraction",
+  "status": "LIVE_SUCCESS",
+  "model_used": "gemini-3.1-flash-lite",
+  "provider_used": "google_gemini",
+  "schema_validated": true,
+  "title": "GitHub Education Student Benefits",
+  "deadline_iso": null,
+  "is_verified_active": false,
+  "min_age": 13,
+  "upstream_error": null,
+  "note": "Actual Google generation on public source facts; not a live application check."
+}

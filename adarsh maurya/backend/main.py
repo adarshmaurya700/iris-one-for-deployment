@@ -889,7 +889,7 @@ async def verify_opportunity_endpoint(
     """
     Two-Filter Opportunity Verification Engine:
       Filter 1: TinyFish Ingestion (TinySearch -> TinyFetch -> TinyAgent Mako)
-      Filter 2: Gemini 2.5 Flash Structured Validation & Profile Cross-Check
+      Filter 2: configured Gemini model Structured Validation & Profile Cross-Check
     """
     from verification import verify_and_store
     opp = find_opportunity(db, req.opportunity_id or 'reliance')
@@ -924,7 +924,7 @@ async def analyze_resume_endpoint(
     """
     Analyzes resume (.pdf, .docx, .txt) or sample_resume.txt.
     Enforces a strict 5 MB file size limit and MIME validation with clear HTTP 400/413 errors.
-    Structures profile via Gemini 2.5 Flash (with resilient fallback).
+    Structures profile via configured Gemini model (with resilient fallback).
     """
     raw_text = None
     data = None
@@ -1082,7 +1082,7 @@ async def discover_and_verify_endpoint(
     db: sqlite3.Connection = Depends(db_session),
 ):
     """
-    Stage A (TinySearch) -> Stage B (TinyFetch) -> Stage C (TinyAgent Mako) -> Filter 2 (Gemini 2.5 Flash).
+    Stage A (TinySearch) -> Stage B (TinyFetch) -> Stage C (TinyAgent Mako) -> Filter 2 (configured Gemini model).
     Extracts structured VerifiedOpportunity and upserts into SQLite opportunities table.
     Rate-limited to 10 requests per 10 minutes per IP.
     """

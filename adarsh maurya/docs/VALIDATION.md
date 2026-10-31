@@ -1,5 +1,7 @@
 # Audit fixes and validation — 31 October 2026
 
+**Subsequent Gemini update:** a credential has now been configured locally and real generation, extraction, resume and assistant checks passed using an explicitly selected model. See [the Gemini integration report](GEMINI_INTEGRATION.md). The original audit results below preserve the earlier pre-configuration state.
+
 The local demonstration works with the existing architecture and visual identity retained. **Full live verification is not ready to claim:** Gemini is unconfigured and the real TinySearch probe rejected the available credential with HTTP 401. No Fetch/Agent call followed that failure. No cloud deployment was performed.
 
 ## Technical audit and fixes

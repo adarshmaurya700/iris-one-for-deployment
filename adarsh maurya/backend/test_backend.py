@@ -31,7 +31,7 @@ class BackendTests(unittest.TestCase):
         self.connections = []
         self.tmp = tempfile.TemporaryDirectory(prefix='iris-test-')
         self.env = patch.dict(os.environ, {'DATABASE_PATH': str(Path(self.tmp.name) / 'test.db'), 'DATABASE_URL': '',
-            'IRIS_DISABLE_SCHEDULER': '1', 'IRIS_MODE': 'live', 'IRIS_SEED_REFERENCE': '1', 'GEMINI_API_KEY': '', 'GROQ_API_KEY': '', 'OLLAMA_BASE_URL': '', 'TINYFISH_API_KEY': ''})
+            'IRIS_DISABLE_SCHEDULER': '1', 'IRIS_MODE': 'live', 'IRIS_SEED_REFERENCE': '1', 'GEMINI_MODEL': 'gemini-2.5-flash', 'GEMINI_MAX_RETRIES': '1', 'GEMINI_API_KEY': '', 'GROQ_API_KEY': '', 'OLLAMA_BASE_URL': '', 'TINYFISH_API_KEY': ''})
         self.env.start()
         database._postgres_available = None
         ai_rate_limiter.hits.clear()

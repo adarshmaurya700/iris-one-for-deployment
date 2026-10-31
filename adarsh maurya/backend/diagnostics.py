@@ -10,17 +10,24 @@ _events = {}
 log = logging.getLogger('iris.integrations')
 
 
-def record(service, status, *, model=None, error=None):
+def record(service, status, *, model=None, error=None, attempts=None):
     if status not in STATES:
         raise ValueError('Unknown diagnostic state')
     # Exception messages/URLs can contain API keys, student resumes or upstream bodies.
     code = type(error).__name__ if error else None
     http_status = getattr(getattr(error, 'response', None), 'status_code', None)
+    failure = {}
+    if error:
+        from providers import safe_provider_error
+        failure = safe_provider_error(error)
     with _lock:
         _events[service] = {'status': status, 'checked_at': utc_now(), 'model': model,
-                            'error_type': code, 'http_status': http_status}
+                            'error_type': code, 'http_status': http_status,
+                            'api_status': failure.get('api_status'), 'reason': failure.get('reason'),
+                            'attempts': attempts}
     if error:
-        log.warning('%s failed (%s, HTTP %s)', service, code, http_status or 'n/a')
+        log.warning('%s failed (%s, HTTP %s, %s, %s)', service, code, http_status or 'n/a',
+                    failure.get('api_status') or 'n/a', failure.get('reason') or 'n/a')
 
 
 def snapshot():

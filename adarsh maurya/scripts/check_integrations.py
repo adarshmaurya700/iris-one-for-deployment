@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'backend'))
 from catalog import utc_now
-from runtime_config import credential, mode
+from runtime_config import credential, mode, gemini_model
 from diagnostics import snapshot, record
 
 
@@ -17,8 +17,8 @@ async def run(live=False):
     if credential('GEMINI_API_KEY') and mode() == 'live':
         from providers import gemini_generate
         try:
-            result = await gemini_generate('Return JSON with status exactly ok. Do not include any other facts.', 'Connectivity test.', json_output=True, max_tokens=80)
-            evidence['Gemini'] = {'status': 'Working' if result == {'status': 'ok'} else 'Failed', 'diagnostic_status': 'LIVE_SUCCESS', 'model': __import__('os').environ.get('GEMINI_MODEL','gemini-2.5-flash')}
+            result = await gemini_generate('Return JSON with status exactly ok. Do not include any other facts.', 'Connectivity test.', json_output=True, max_tokens=512)
+            evidence['Gemini'] = {'status': 'Working' if result == {'status': 'ok'} else 'Failed', 'diagnostic_status': 'LIVE_SUCCESS', 'model': gemini_model()}
         except Exception as exc:
             evidence['Gemini'] = {'status': 'Failed', 'error_type': type(exc).__name__}
     else:

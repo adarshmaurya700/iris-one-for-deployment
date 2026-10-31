@@ -1,6 +1,7 @@
 """Shared non-secret runtime policy. Environment files never override host settings."""
 import os
 import secrets
+import re
 from pathlib import Path
 import env_loader  # noqa: F401
 
@@ -19,6 +20,18 @@ def mode():
 def credential(name):
     value = os.environ.get(name, '').strip()
     return value if value and not value.upper().startswith(('YOUR_', 'REPLACE_', 'CHANGE_ME')) else ''
+
+
+DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
+
+
+def gemini_model():
+    """A single default; never switch models after an upstream failure."""
+    value = os.environ.get('GEMINI_MODEL', '').strip() or DEFAULT_GEMINI_MODEL
+    value = value.removeprefix('models/')
+    if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}', value):
+        raise ValueError('GEMINI_MODEL must be a Gemini model ID, not a URL.')
+    return value
 
 
 def signing_secret():

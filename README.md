@@ -20,6 +20,8 @@ Open http://127.0.0.1:8000/. The labeled demo runs without external keys: authen
 
 Use `IRIS_MODE=live` with a separate database for genuine provider operations. New live databases start empty and guests start blank. At the 31 October 2026 audit Gemini was unconfigured and the available TinyFish credential returned HTTP 401. Full live verification remains unvalidated. No production latency, accuracy or scalability guarantee is claimed.
 
+Subsequent Gemini configuration and real extraction/resume/assistant checks succeeded with an explicitly selected alternative model. See the [current Gemini integration report](adarsh%20maurya/docs/GEMINI_INTEGRATION.md) for model access failures, successful calls and safe configuration. Full TinyFish application verification remains separate.
+
 ## Documentation
 
 - [Technical audit](adarsh%20maurya/docs/AUDIT.md)

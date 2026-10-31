@@ -1,0 +1,119 @@
+{
+  "checked_at": "2026-10-31T06:33:32.541761Z",
+  "model": "gemini-3.1-flash-lite",
+  "key_configured": true,
+  "automatic_model_switching": false,
+  "tests": {
+    "model_metadata": {
+      "status": "LIVE_SUCCESS",
+      "http_status": 200,
+      "generation_methods": [
+        "generateContent",
+        "countTokens",
+        "createCachedContent",
+        "batchGenerateContent"
+      ]
+    },
+    "generation": {
+      "status": "LIVE_SUCCESS",
+      "model_used": "gemini-3.1-flash-lite"
+    },
+    "opportunity_extraction": {
+      "status": "LOCAL_FALLBACK",
+      "provider_used": "local",
+      "model_used": "deterministic-opportunity-parser",
+      "upstream_error": {
+        "error_type": "HTTPStatusError",
+        "http_status": 503,
+        "api_status": "UNAVAILABLE",
+        "reason": null
+      },
+      "schema_validated": false,
+      "title": "GitHub Education student benefits",
+      "deadline_iso": null,
+      "is_verified_active": false,
+      "note": "Real model extraction; no TinyFish/application verification was performed."
+    },
+    "resume_upload_and_analysis": {
+      "http_status": 200,
+      "status": "LIVE_SUCCESS",
+      "provider_used": "google_gemini",
+      "model_used": "gemini-3.1-flash-lite",
+      "upstream_error": null,
+      "name_matches_input": true,
+      "skills_from_input": [
+        "Python",
+        "FastAPI",
+        "SQL"
+      ],
+      "persistence_checked": true
+    },
+    "ask_iris": {
+      "http_status": 200,
+      "status": "LIVE_SUCCESS",
+      "model_used": "gemini-3.1-flash-lite",
+      "answer_present": true,
+      "source_cards": 5,
+      "note": "Stored reference catalog was used only in the disposable test database."
+    }
+  },
+  "input_provenance": {
+    "opportunity": "https://docs.github.com/en/education/about-github-education/github-education-for-students/apply-to-github-education-as-a-student",
+    "resume": "Synthetic test resume; no real private student data."
+  },
+  "diagnostics": {
+    "operating_mode": "live",
+    "scope": "This server process; configured does not mean tested.",
+    "services": {
+      "Gemini": {
+        "status": "LIVE_SUCCESS",
+        "checked_at": "2026-10-31T06:33:52.320851Z",
+        "model": "gemini-3.1-flash-lite",
+        "error_type": null,
+        "http_status": null,
+        "api_status": null,
+        "reason": null,
+        "configured": true
+      },
+      "Gemini opportunity extraction": {
+        "status": "LIVE_FAILED",
+        "checked_at": "2026-10-31T06:33:38.563251Z",
+        "model": null,
+        "error_type": "HTTPStatusError",
+        "http_status": 503,
+        "api_status": "UNAVAILABLE",
+        "reason": null
+      },
+      "Gemini resume extraction": {
+        "status": "LIVE_SUCCESS",
+        "checked_at": "2026-10-31T06:33:48.178397Z",
+        "model": "gemini-3.1-flash-lite",
+        "error_type": null,
+        "http_status": null,
+        "api_status": null,
+        "reason": null
+      },
+      "Ask IRIS": {
+        "status": "LIVE_SUCCESS",
+        "checked_at": "2026-10-31T06:33:52.320912Z",
+        "model": "gemini-3.1-flash-lite",
+        "error_type": null,
+        "http_status": null,
+        "api_status": null,
+        "reason": null
+      },
+      "TinyFish": {
+        "status": "UNTESTED",
+        "configured": true
+      },
+      "Groq": {
+        "status": "NOT_CONFIGURED",
+        "configured": false
+      },
+      "Ollama": {
+        "status": "NOT_CONFIGURED",
+        "configured": false
+      }
+    }
+  }
+}

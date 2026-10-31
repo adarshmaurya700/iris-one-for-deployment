@@ -6,7 +6,7 @@ from functools import lru_cache
 import httpx
 from application_service import get_student_profile, tracked_exclusive_titles
 from catalog import json_value, today_in_india, verification_state
-from runtime_config import credential, mode
+from runtime_config import credential, mode, gemini_model
 from diagnostics import record
 from providers import gemini_generate
 from database import PostgresConnection
@@ -124,15 +124,17 @@ async def _model_answer(query, context):
     prompt = json.dumps({'question': query, 'reference_data': context}, ensure_ascii=False)
     providers = []
     if credential('GEMINI_API_KEY') and mode() == 'live':
-        providers.append('gemini-2.5-flash')
+        providers.append('gemini')
     if credential('GROQ_API_KEY') and mode() == 'live':
         providers.append('llama-3.3-70b-versatile')
     if credential('OLLAMA_BASE_URL') and mode() == 'live':
         providers.append('ollama')
     async with httpx.AsyncClient(timeout=8.0) as client:
         for provider in providers:
+            actual = provider
             try:
-                if provider == 'gemini-2.5-flash':
+                if provider == 'gemini':
+                    actual = gemini_model()
                     answer = await gemini_generate(instruction, prompt, max_tokens=2200)
                 elif provider == 'llama-3.3-70b-versatile':
                     response = await client.post('https://api.groq.com/openai/v1/chat/completions', headers={'Authorization': 'Bearer ' + os.environ['GROQ_API_KEY']}, json={'model': provider, 'messages': [{'role': 'system', 'content': instruction}, {'role': 'user', 'content': prompt}], 'temperature': 0.1})
@@ -143,13 +145,13 @@ async def _model_answer(query, context):
                     response.raise_for_status()
                     answer = response.json()['message']['content']
                 if isinstance(answer, str) and answer.strip():
-                    actual = os.environ.get('GEMINI_MODEL', provider) if provider == 'gemini-2.5-flash' else provider
+                    actual = gemini_model() if provider == 'gemini' else provider
                     record('Ask IRIS', 'LIVE_SUCCESS', model=actual)
-                    if provider != 'gemini-2.5-flash':
+                    if provider != 'gemini':
                         record('Ollama' if provider == 'ollama' else 'Groq', 'LIVE_SUCCESS', model=os.environ.get('OLLAMA_MODEL', 'llama3.2') if provider == 'ollama' else provider)
                     return answer.strip(), actual
             except Exception as exc:
-                record('Gemini' if provider == 'gemini-2.5-flash' else 'Ollama' if provider == 'ollama' else 'Groq', 'LIVE_FAILED', model=provider, error=exc)
+                record('Gemini assistant request' if provider == 'gemini' else 'Ollama' if provider == 'ollama' else 'Groq', 'LIVE_FAILED', model=actual, error=exc)
                 continue
     record('Ask IRIS', 'LOCAL_FALLBACK', model='deterministic-local-rag')
     return None, 'deterministic-local-rag'
