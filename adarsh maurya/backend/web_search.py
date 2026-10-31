@@ -5,6 +5,9 @@ Uses TinyFish Search only (no Fetch/Agent, so no per-run wallet spend).
 from __future__ import annotations
 
 import re
+import hashlib
+from catalog import today_in_india
+from runtime_config import mode
 import time
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
@@ -46,9 +49,9 @@ def _build_search_query(user_q: str) -> str:
 
     month = next((m for m in MONTHS if m in q), None)
     if month:
-        parts.append(f"{month.title()} 2026")
+        parts.append(f"{month.title()} {today_in_india().year}")
     else:
-        parts.append("2026")
+        parts.append(str(today_in_india().year))
 
     return " ".join(parts)
 
@@ -77,7 +80,7 @@ def _normalize_item(item: Dict) -> Optional[Dict]:
 
     domain = urlparse(url).netloc.replace("www.", "")
     return {
-        "id": f"web-{abs(hash(url))}",
+        "id": "web-" + hashlib.sha256(url.encode()).hexdigest()[:16],
         "title": title,
         "provider": domain,
         "url": url,
@@ -104,7 +107,7 @@ async def search_web_opportunities(user_q: str, limit: int = 8) -> Dict:
         return {**cached[1], "cached": True}
 
     if not _has_tinyfish_key():
-        return {"results": [], "mode": "demo", "query": user_q, "cached": False}
+        return {"results": [], "mode": "not_configured", "query": user_q, "cached": False}
 
     search_q = _build_search_query(user_q)
     raw = await _call_tinyfish_search(

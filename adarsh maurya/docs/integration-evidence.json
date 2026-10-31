@@ -1,0 +1,40 @@
+{
+  "checked_at": "2026-10-31T05:54:51.452958Z",
+  "operating_mode": "live",
+  "verification_claimed": false,
+  "Gemini": {
+    "status": "Not configured",
+    "live_test": "Untested"
+  },
+  "TinyFish": {
+    "status": "Failed",
+    "error_type": "HTTPStatusError",
+    "http_status": 401
+  },
+  "diagnostics": {
+    "operating_mode": "live",
+    "scope": "This server process; configured does not mean tested.",
+    "services": {
+      "TinyFish": {
+        "status": "LIVE_FAILED",
+        "checked_at": "2026-10-31T05:54:57.446164Z",
+        "model": null,
+        "error_type": "HTTPStatusError",
+        "http_status": 401,
+        "configured": true
+      },
+      "Gemini": {
+        "status": "NOT_CONFIGURED",
+        "configured": false
+      },
+      "Groq": {
+        "status": "NOT_CONFIGURED",
+        "configured": false
+      },
+      "Ollama": {
+        "status": "NOT_CONFIGURED",
+        "configured": false
+      }
+    }
+  }
+}

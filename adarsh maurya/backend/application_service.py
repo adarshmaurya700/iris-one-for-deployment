@@ -3,7 +3,8 @@ import json
 from contextvars import ContextVar
 from datetime import date, datetime, timedelta, timezone
 from fastapi import HTTPException
-from catalog import json_value, utc_now
+from catalog import json_value, utc_now, verification_state
+from runtime_config import mode
 from database import find_opportunity
 from matcher import compute_deterministic_embedding, evaluate_match_and_conflicts
 
@@ -47,10 +48,10 @@ def save_student_profile(db, student_id, profile, resume_text=None):
     skills = profile.get('extracted_skills') if 'extracted_skills' in profile else profile.get('skills')
     if skills is not None:
         data['skills_json'] = json.dumps(skills if isinstance(skills, list) else [s.strip() for s in skills.split(',')])
-    if profile.get('family_income_lpa') is not None:
+    if profile.get('family_income_lpa') is not None and 'family_income_inr' not in profile:
         data['family_income_inr'] = round(float(profile['family_income_lpa']) * 100000)
     marks = profile.get('cgpa_or_percentage')
-    if marks:
+    if marks and 'class_12_pct' not in profile:
         try:
             marks = float(str(marks).strip().rstrip('%'))
             if 10 < marks <= 100:
@@ -73,7 +74,7 @@ def get_student_profile(db, student_id='default_student', current_user=None):
     row = db.execute('SELECT * FROM student_profiles WHERE id = ?', (student_id,)).fetchone()
     if row:
         return dict(row)
-    profile = current_user or DEMO_PROFILE
+    profile = current_user or (DEMO_PROFILE if mode() == 'demo' else {'name': '', 'academic_tier': '', 'country': ''})
     return save_student_profile(db, student_id, profile)
 
 
@@ -86,6 +87,7 @@ def how_to_apply(db, opportunity_id, student_id='default_student', current_user=
     opp = find_opportunity(db, opportunity_id)
     if not opp:
         raise HTTPException(404, 'Opportunity not found.')
+    opp.update(verification_state(opp))
     profile = get_student_profile(db, student_id, current_user)
     match = evaluate_match_and_conflicts(profile, opp, tracked_exclusive_titles(db, student_id))
     tracked = db.execute('SELECT * FROM tracked_applications WHERE student_id = ? AND opportunity_id = ?', (student_id, opp['id'])).fetchone()
@@ -95,6 +97,8 @@ def how_to_apply(db, opportunity_id, student_id='default_student', current_user=
         'provider': opp['provider'] or opp['organization'], 'category': opp['category'],
         'benefit_summary': opp['benefit_summary'], 'match_score': match['match_score'],
         'match_breakdown': match['breakdown'], 'eligible': match['eligible'], 'gate_warnings': match['gate_warnings'],
+        'eligibility_status': match['eligibility_status'], 'eligibility_checklist': match['eligibility_checklist'],
+        'match_note': match['match_note'], 'is_simulated': opp['is_simulated'],
         'verification_status': opp['verification_status'], 'last_verified_at': opp['last_verified_at'],
         'last_checked_at': opp['last_checked_at'], 'deadline_iso': opp['deadline_iso'],
         'is_exclusive_tuition_grant': bool(opp['is_exclusive_tuition_grant']),

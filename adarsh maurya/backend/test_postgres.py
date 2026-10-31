@@ -15,7 +15,7 @@ class PostgresTests(unittest.TestCase):
         from fastapi.testclient import TestClient
         from main import app
         from seed_data import seed_opportunities
-        with patch.dict(os.environ, {'DATABASE_URL': os.environ['IRIS_TEST_POSTGRES_URL'], 'IRIS_DISABLE_SCHEDULER': '1', 'TINYFISH_API_KEY': '', 'GEMINI_API_KEY': '', 'GROQ_API_KEY': '', 'OLLAMA_BASE_URL': ''}):
+        with patch.dict(os.environ, {'DATABASE_URL': os.environ['IRIS_TEST_POSTGRES_URL'], 'IRIS_DISABLE_SCHEDULER': '1', 'IRIS_MODE': 'live', 'IRIS_SEED_REFERENCE': '1', 'TINYFISH_API_KEY': '', 'GEMINI_API_KEY': '', 'GROQ_API_KEY': '', 'OLLAMA_BASE_URL': ''}):
             database._postgres_available = None
             with TestClient(app) as client:
                 db = database.get_db()

@@ -1,15 +1,15 @@
 /* IRIS onE — one paper canvas, one surface system, one isolated view. */
 :root {
-  --paper: #faf8f3;
+  --paper: #f7f6f2;
   --surface: #fff;
-  --ink: #14213a;
-  --muted: #6d7788;
+  --ink: #151e30;
+  --muted: #64748b;
   --line: #eceae4;
-  --blue: #1d63dc;
-  --blue-soft: #edf3ff;
-  --gold: #c8a24a;
+  --blue: #2563eb;
+  --blue-soft: #eaf2ff;
+  --gold: #d8b66a;
   --gold-soft: #f3efe6;
-  --nav: #0f1626;
+  --nav: #0b1220;
   --green: #17836a;
   --green-soft: #ecf7f1;
   --red: #b54742;
@@ -252,7 +252,7 @@ summary:focus-visible {
   border: 1px solid #2a354b;
   border-radius: 12px;
   padding: 17px;
-  background: linear-gradient(130deg, #1e2b41, rgba(26, 36, 55, 0.2));
+  background: #182235;
   margin: 18px 1px 19px;
 }
 .note-star {
@@ -322,7 +322,7 @@ summary:focus-visible {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: linear-gradient(145deg, #397ff3, #1751c8);
+  background: var(--blue);
   color: white;
   font-family: "Inter", sans-serif;
   font-size: 24px;
@@ -342,28 +342,25 @@ summary:focus-visible {
   margin-left: var(--sidebar);
   min-height: 100vh;
   position: relative;
-  background:
-    radial-gradient(
-      ellipse 680px 260px at 85% 4%,
-      rgba(226, 234, 247, 0.28),
-      transparent
-    ),
-    radial-gradient(
-      ellipse 400px 400px at 16% 32%,
-      rgba(235, 224, 198, 0.13),
-      transparent
-    ),
-    var(--paper);
+  background: var(--paper);
 }
 .app-shell::before {
-  content: "";
-  position: absolute;
-  inset: 85px 0 0;
-  background-image: radial-gradient(#a49e8b 0.6px, transparent 0.6px);
-  background-size: 24px 24px;
-  opacity: 0.055;
-  pointer-events: none;
+  display: none;
 }
+.runtime-banner {
+  padding: 10px 16px;
+  margin-bottom: 24px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--gold-soft);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.eligibility-row.failed {
+  color: var(--red);
+}
+
 .topbar {
   height: 83px;
   display: flex;
@@ -1316,7 +1313,7 @@ main {
   gap: 28px;
   border-radius: 18px;
   border: 1px solid #e9e3d7;
-  background: linear-gradient(110deg, #f4f0e7, #f8f6f0);
+  background: var(--gold-soft);
 }
 .detail-hero h1 {
   font-size: clamp(25px, 2.5vw, 35px);
@@ -1343,7 +1340,7 @@ main {
   align-items: center;
   justify-content: center;
   position: relative;
-  background: radial-gradient(circle, #e9dfc6 0, transparent 68%);
+  background: transparent;
 }
 .detail-art::after {
   content: "";
@@ -4402,5 +4399,15 @@ main {
   }
   .sidebar-bottom {
     padding-top: 18px;
+  }
+}
+
+/* Restrained runtime label, aligned with each existing view. */
+.runtime-banner {
+  margin: 18px 40px 0;
+}
+@media (max-width: 700px) {
+  .runtime-banner {
+    margin: 16px 20px 0;
   }
 }

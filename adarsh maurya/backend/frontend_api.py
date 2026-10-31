@@ -10,6 +10,9 @@ from application_service import get_student_profile, save_student_profile, stude
 from catalog import json_value, utc_now
 from database import db_session, find_opportunity, PostgresConnection
 from matcher import calculate_match
+from catalog import verification_state
+from runtime_config import mode, credential
+from security import require_admin
 
 router = APIRouter()
 
@@ -52,7 +55,11 @@ def profile(current_user=Depends(get_workspace_user), db=Depends(db_session)):
 def update_profile(req: ProfileInput, current_user=Depends(get_workspace_user), db=Depends(db_session)):
     identity = student_identity(current_user)
     get_student_profile(db, identity, current_user)
-    values = req.model_dump(exclude_unset=True, exclude_none=True)
+    values = req.model_dump(exclude_unset=True)
+    nullable = {'age', 'graduation_year', 'class_12_pct', 'family_income_inr', 'nirf_top_50'}
+    for key in list(values):
+        if values[key] is None and key not in nullable:
+            del values[key]
     if 'skills' in values:
         values['skills_json'] = json.dumps(list(dict.fromkeys(skill.strip()[:60] for skill in values.pop('skills') if skill.strip())))
     if 'domains' in values:
@@ -81,7 +88,7 @@ def update_profile(req: ProfileInput, current_user=Depends(get_workspace_user), 
 
 
 def public_opportunity(db, record, current_user=None):
-    item = dict(record)
+    item = {**dict(record), **verification_state(dict(record))}
     profile = get_student_profile(db, student_identity(current_user), current_user)
     match = calculate_match(profile, item)
     item.update(db_id=item['id'], id=item.get('slug') or str(item['id']), match=match, match_score=match['overall'])
@@ -174,6 +181,36 @@ def application_calendar(current_user=Depends(get_workspace_user), db=Depends(db
 def platform_config(db=Depends(db_session)):
     return {'database': 'PostgreSQL' if isinstance(db, PostgresConnection) else 'SQLite WAL',
             'catalog_count': db.execute('SELECT COUNT(*) FROM opportunities').fetchone()[0],
-            'live_verification_configured': bool(os.environ.get('TINYFISH_API_KEY') and os.environ.get('GEMINI_API_KEY')),
-            'assistant_providers': [label for key, label in [('GEMINI_API_KEY', 'Gemini'), ('GROQ_API_KEY', 'Groq'), ('OLLAMA_BASE_URL', 'Ollama')] if os.environ.get(key)] or ['Local retrieval'],
+            'operating_mode': mode(), 'is_simulated': mode() == 'demo',
+            'live_verification_configured': mode() == 'live' and bool(credential('TINYFISH_API_KEY') and credential('GEMINI_API_KEY')),
+            'assistant_providers': ['Local retrieval (demo)'] if mode() == 'demo' else [label for key, label in [('GEMINI_API_KEY', 'Gemini'), ('GROQ_API_KEY', 'Groq'), ('OLLAMA_BASE_URL', 'Ollama')] if os.environ.get(key)] or ['Local retrieval'],
             'sync_interval_hours': 12}
+
+
+@router.get('/api/admin/diagnostics', dependencies=[Depends(require_admin)])
+def integration_diagnostics(db=Depends(db_session)):
+    from diagnostics import snapshot
+    from scheduler import get_scheduler_status
+    return {**snapshot(), 'database': 'PostgreSQL' if isinstance(db, PostgresConnection) else 'SQLite WAL',
+            'database_connected': db.execute('SELECT 1').fetchone()[0] == 1,
+            'scheduler': get_scheduler_status()}
+
+
+@router.get('/api/profile/export')
+def export_profile(current_user=Depends(get_workspace_user), db=Depends(db_session)):
+    identity = student_identity(current_user)
+    data = {'exported_at': utc_now(), 'profile': profile_payload(get_student_profile(db, identity, current_user)),
+            'saved': saved_feed(current_user, db), 'applications': applications(current_user, db)['applications']}
+    return Response(json.dumps(data, ensure_ascii=False, default=str), media_type='application/json',
+                    headers={'Content-Disposition': 'attachment; filename="iris-workspace.json"'})
+
+
+@router.delete('/api/profile/resume')
+def remove_resume(current_user=Depends(get_workspace_user), db=Depends(db_session)):
+    identity = student_identity(current_user)
+    get_student_profile(db, identity, current_user)
+    saved = save_student_profile(db, identity, {'resume_text': '', 'resume_filename': '', 'resume_uploaded_at': ''})
+    if current_user:
+        db.execute("UPDATE users SET profile_json = '' WHERE id = ?", (current_user['id'],))
+        db.commit()
+    return profile_payload(saved)

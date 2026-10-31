@@ -31,11 +31,14 @@ class BackendTests(unittest.TestCase):
         self.connections = []
         self.tmp = tempfile.TemporaryDirectory(prefix='iris-test-')
         self.env = patch.dict(os.environ, {'DATABASE_PATH': str(Path(self.tmp.name) / 'test.db'), 'DATABASE_URL': '',
-            'IRIS_DISABLE_SCHEDULER': '1', 'GEMINI_API_KEY': '', 'GROQ_API_KEY': '', 'OLLAMA_BASE_URL': '', 'TINYFISH_API_KEY': ''})
+            'IRIS_DISABLE_SCHEDULER': '1', 'IRIS_MODE': 'live', 'IRIS_SEED_REFERENCE': '1', 'GEMINI_API_KEY': '', 'GROQ_API_KEY': '', 'OLLAMA_BASE_URL': '', 'TINYFISH_API_KEY': ''})
         self.env.start()
         database._postgres_available = None
         ai_rate_limiter.hits.clear()
         resume_rate_limiter.hits.clear()
+        from security import assistant_limit, auth_limit, sync_limit
+        for limiter in (assistant_limit, auth_limit, sync_limit):
+            limiter.hits.clear()
         self.client = TestClient(app).__enter__()
 
     def tearDown(self):
@@ -135,7 +138,7 @@ class BackendTests(unittest.TestCase):
         with patch.dict(os.environ, {'OLLAMA_BASE_URL': 'http://localhost:11434'}), patch('httpx.AsyncClient.post', new=AsyncMock(return_value=response)) as model:
             result = self.client.post('/api/assistant/ask', json={'query': 'Airtel documents'}).json()
         self.assertEqual(result['model_used'], 'ollama')
-        context = model.call_args.kwargs['json']['messages'][0]['content']
+        context = model.call_args.kwargs['json']['messages'][1]['content']
         self.assertIn('how_to_apply_steps_json', context)
         self.assertIn('tracked_applications', context)
 
@@ -185,7 +188,7 @@ class BackendTests(unittest.TestCase):
         import httpx
         payload = {'title': 'Verified test scholarship', 'provider': 'Test foundation', 'apply_url': 'https://example.org/apply', 'deadline_iso': '2099-12-31', 'income_cap_inr': 800000, 'min_marks_pct': 60, 'nirf_cutoff': 50, 'is_exclusive_tuition_grant': True, 'how_to_apply_steps': [{'step': 1, 'title': 'Register', 'detail': 'Complete the official form.'}], 'required_documents': ['Student ID']}
         response = httpx.Response(200, json={'candidates': [{'content': {'parts': [{'text': json.dumps(payload)}]}}]}, request=httpx.Request('POST', 'https://example.org'))
-        with patch('tinyfish_pipeline._get_api_key', return_value='test'), patch('tinyfish_pipeline._call_tinyfish_search', new=AsyncMock(return_value={'results': []})), patch('tinyfish_pipeline._call_tinyfish_fetch', new=AsyncMock(return_value={'markdown': 'Program details'})), patch('tinyfish_pipeline._call_tinyfish_agent', new=AsyncMock(return_value={'result': {'is_button_live': True}})), patch.dict(os.environ, {'GEMINI_API_KEY': 'test'}), patch('httpx.AsyncClient.post', new=AsyncMock(return_value=response)):
+        with patch('tinyfish_pipeline._get_api_key', return_value='test'), patch('tinyfish_pipeline._call_tinyfish_search', new=AsyncMock(return_value={'results': []})), patch('tinyfish_pipeline._call_tinyfish_fetch', new=AsyncMock(return_value={'markdown': 'Program details'})), patch('tinyfish_pipeline._call_tinyfish_agent', new=AsyncMock(return_value={'result': {'is_button_live': True, 'application_url': 'https://example.org/apply', 'evidence': 'Apply button visible and accepting applications'}})), patch.dict(os.environ, {'GEMINI_API_KEY': 'test'}), patch('httpx.AsyncClient.post', new=AsyncMock(return_value=response)):
             result = asyncio.run(verify_catalog_record({'title': 'Test', 'apply_url': 'https://example.org/apply'}))
         self.assertEqual(result['verification_status'], 'VERIFIED_LIVE')
         self.assertTrue(result['last_verified_at'])
@@ -193,19 +196,19 @@ class BackendTests(unittest.TestCase):
         self.assertEqual([step['status'] for step in result['trace']], ['completed'] * 4)
 
     def test_live_failure_and_closed_portal_do_not_become_verified(self):
-        with patch('tinyfish_pipeline._get_api_key', return_value='test'), patch('tinyfish_pipeline._call_tinyfish_search', new=AsyncMock(side_effect=TimeoutError())):
+        with patch.dict(os.environ, {'GEMINI_API_KEY': 'test'}), patch('tinyfish_pipeline._get_api_key', return_value='test'), patch('tinyfish_pipeline._call_tinyfish_search', new=AsyncMock(side_effect=TimeoutError())):
             failed = asyncio.run(verify_catalog_record({'title': 'Test'}))
-        self.assertEqual(failed['verification_status'], 'CACHE_ONLY')
+        self.assertEqual(failed['verification_status'], 'COULD_NOT_VERIFY')
         self.assertFalse(failed['last_verified_at'])
         self.assertEqual(len(failed['trace']), 4)
-        with patch('tinyfish_pipeline._get_api_key', return_value='test'), patch('tinyfish_pipeline._call_tinyfish_search', new=AsyncMock(return_value={})), patch('tinyfish_pipeline._call_tinyfish_fetch', new=AsyncMock(return_value={})), patch('tinyfish_pipeline._call_tinyfish_agent', new=AsyncMock(return_value={'result': {'is_button_live': False}})):
+        with patch.dict(os.environ, {'GEMINI_API_KEY': 'test'}), patch('tinyfish_pipeline._get_api_key', return_value='test'), patch('tinyfish_pipeline._call_tinyfish_search', new=AsyncMock(return_value={})), patch('tinyfish_pipeline._call_tinyfish_fetch', new=AsyncMock(return_value={})), patch('tinyfish_pipeline._call_tinyfish_agent', new=AsyncMock(return_value={'result': {'is_button_live': False}})):
             closed = asyncio.run(verify_catalog_record({'title': 'Test', 'url': 'https://example.org'}))
         self.assertEqual(closed['verification_status'], 'CLOSED')
         self.assertFalse(closed['last_verified_at'])
 
     def test_matching_hard_gates_and_sponsorship(self):
         db = self.db()
-        opp = find_opportunity(db, 'airtel')
+        opp = {**find_opportunity(db, 'airtel'), 'deadline_iso': '2099-12-31'}
         profile = {**DEMO_PROFILE, 'nirf_top_50': 1}
         good = evaluate_match_and_conflicts(profile, opp, [])
         self.assertTrue(good['eligible'])

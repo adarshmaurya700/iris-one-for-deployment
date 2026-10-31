@@ -7,6 +7,7 @@ _temp = tempfile.TemporaryDirectory(prefix='iris-legacy-test-')
 os.environ['DATABASE_PATH'] = os.path.join(_temp.name, 'test.db')
 os.environ['DATABASE_URL'] = ''
 os.environ['IRIS_DISABLE_SCHEDULER'] = '1'
+os.environ['IRIS_MODE'] = 'demo'
 for _key in ('TINYFISH_API_KEY', 'GEMINI_API_KEY', 'GROQ_API_KEY', 'OLLAMA_BASE_URL', 'TELEGRAM_BOT_TOKEN'):
     os.environ[_key] = ''
 
@@ -231,7 +232,7 @@ db_conn = get_db()
 db_cur = db_conn.cursor()
 db_cur.execute("SELECT slug, title, category FROM opportunities WHERE slug IN ('airtel', 'delhi-mcm', 'gemini-student', 'adobe-insider', 'aditya-birla', 'github-campus-experts')")
 core_rows = db_cur.fetchall()
-print(f"Core Verified Opportunities in DB: SUCCESS ({len(core_rows)} verified core items verified)")
+print(f"Reference catalog rows: SUCCESS ({len(core_rows)} records; not proof of live verification)")
 for cr in core_rows:
     print(f"  - [{cr[0]}]: {cr[1]} ({cr[2]})")
 db_conn.close()
@@ -253,8 +254,10 @@ admin_data = res_admin.json()
 assert "audit_summary" in admin_data
 print(f"Admin Refresh Catalog: SUCCESS (Audited: {admin_data['audit_summary'].get('total_opportunities')}, Active: {admin_data['audit_summary'].get('active_count')})")
 
+client.post("/api/saved/reliance", headers=headers)
+
 # 24. Test Subscribable User Calendar Feed (/api/users/{id}/calendar.ics)
-res_user_ics = client.get(f"/api/users/{me['id']}/calendar.ics")
+res_user_ics = client.get(f"/api/users/{me['id']}/calendar.ics", headers=headers)
 assert res_user_ics.status_code == 200, res_user_ics.text
 assert "BEGIN:VCALENDAR" in res_user_ics.text
 assert "VALARM" in res_user_ics.text
@@ -262,13 +265,14 @@ assert "-PT72H" in res_user_ics.text or "-PT24H" in res_user_ics.text
 print(f"User Calendar Feed: SUCCESS (Subscribable RFC 5545 feed for user {me['id']})")
 
 # 25. Test Telegram Notification Endpoint (/api/notifications/telegram-test)
-res_tg = client.post("/api/notifications/telegram-test", json={
-    "chat_id": "123456789",
+res_tg = client.post("/api/notifications/telegram-test", headers=headers, json={
+    "preview": True,
     "opportunity_id": "airtel"
-}, headers=headers)
+})
 assert res_tg.status_code == 200, res_tg.text
 tg_data = res_tg.json()
-assert tg_data.get("success") is True
+assert tg_data.get("delivered") is False
+assert tg_data.get("mode") == "preview"
 print(f"Telegram Alert Endpoint: SUCCESS (Mode: {tg_data.get('mode')})")
 
 # 26. Test Resume Upload Guardrails (File Size / Type rejection)
@@ -319,4 +323,4 @@ ai_sop_data = res_ai_sop.json()
 assert "statement of purpose" in ai_sop_data["reply"].lower() or "sop" in ai_sop_data["reply"].lower()
 print("AI Assistant (SOP Generation & Active Opportunity Context): SUCCESS (200 OK)")
 
-print("\n*** ALL BACKEND VERIFICATION CHECKS (1-27) COMPLETED WITH 100% SUCCESS! ***")
+print("\n*** LOCAL SMOKE CHECKS COMPLETED. EXTERNAL SERVICES WERE NOT CALLED. ***")

@@ -88,7 +88,7 @@ def run_12h_verification_sync(run_type='12H_SCHEDULED_SYNC', live=True, db=None)
         active = db.execute('SELECT COUNT(*) FROM opportunities WHERE is_verified_active = 1').fetchone()[0]
         summary = {'status': 'completed', 'total_opportunities': len(opportunities), 'opportunities_updated': updated,
                    'expired_count': expired, 'active_count': active, 'live_verified_count': live_count,
-                   'fake_links_purged': expired, 'mode': 'live' if live_count else 'cache_only', 'executed_at': utc_now()}
+                   'fake_links_purged': 0, 'mode': 'live' if live_count else 'cache_only', 'executed_at': utc_now()}
         db.execute('UPDATE sync_runs SET status = ?, opportunities_updated = ?, fake_links_purged = ?, completed_at = ?, summary_json = ? WHERE id = ?', ('completed', updated, expired, utc_now(), json.dumps(summary), run_id))
         db.commit()
         SCHEDULER_STATE.update(last_sync_iso=summary['executed_at'], sync_count=SCHEDULER_STATE['sync_count'] + 1, last_result=summary)

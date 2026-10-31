@@ -8,19 +8,16 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 import os
 import sqlite3
-import warnings
 import bcrypt
 import jwt
 from fastapi import Request, HTTPException, status, Depends
 
 import env_loader  # noqa: F401
 
-# Suppress pyjwt HMAC key length recommendation warning for the specified secret key
-warnings.filterwarnings("ignore", category=UserWarning, module="jwt")
-
 from database import get_db, db_session, row_to_dict
+from runtime_config import signing_secret
 
-SECRET_KEY = os.environ.get("JWT_SECRET") or "iris_one_secret_key_2026"
+SECRET_KEY = signing_secret()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
@@ -28,18 +25,20 @@ ACCESS_TOKEN_EXPIRE_HOURS = 24
 def hash_password(password: str) -> str:
     """Hashes a plaintext password using bcrypt with a salt."""
     pwd_bytes = password.encode("utf-8")
+    if len(pwd_bytes) > 72:
+        raise ValueError('Password must be at most 72 UTF-8 bytes.')
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(pwd_bytes, salt).decode("utf-8")
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    """Verifies a plaintext password against a bcrypt hash, supporting legacy demo passwords."""
+    """Verify bcrypt only. Stored hashes must never themselves be valid passwords."""
     if not password or not password_hash:
         return False
-    if password == password_hash:
-        return True
     try:
         pwd_bytes = password.encode("utf-8")
+        if len(pwd_bytes) > 72 or not password_hash.startswith(('$2a$', '$2b$', '$2y$')):
+            return False
         hash_bytes = password_hash.encode("utf-8")
         return bcrypt.checkpw(pwd_bytes, hash_bytes)
     except Exception:
@@ -64,7 +63,7 @@ def decode_token(token: str) -> int:
     Raises HTTPException 401 if invalid or expired.
     """
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={'require': ['sub', 'exp', 'iat']})
         user_id_str = payload.get("sub")
         if user_id_str is None:
             raise HTTPException(
@@ -140,23 +139,7 @@ def get_optional_current_user(request: Request, db: sqlite3.Connection = Depends
     Dependency that attempts to extract and authenticate current user,
     but returns None instead of raising an error if unauthenticated.
     """
-    token = _extract_token_from_header(request)
-    if not token:
-        return None
-
-    try:
-        user_id = decode_token(token)
-        cursor = db.cursor()
-        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        row = cursor.fetchone()
-        if not row:
-            return None
-        user_dict = row_to_dict(row)
-        if user_dict and "password_hash" in user_dict:
-            del user_dict["password_hash"]
-        return user_dict
-    except Exception:
-        return None
+    return get_workspace_user(request, db)
 
 
 def get_workspace_user(request: Request, db=Depends(db_session)):

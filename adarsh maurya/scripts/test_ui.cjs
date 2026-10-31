@@ -1,215 +1,441 @@
 /* Run with Playwright installed: node scripts/test_ui.cjs */
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { spawn, spawnSync } = require('node:child_process');
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
+const { spawn, spawnSync } = require("node:child_process");
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
-const project = path.resolve(__dirname, '..');
-const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'iris-ui-'));
-const port = process.env.IRIS_UI_PORT || '8772';
+const project = path.resolve(__dirname, "..");
+const directory = fs.mkdtempSync(path.join(os.tmpdir(), "iris-ui-"));
+const port = process.env.IRIS_UI_PORT || "8772";
 const base = `http://127.0.0.1:${port}`;
-const env = { ...process.env, DATABASE_PATH: path.join(directory, 'ui.db'), DATABASE_URL: '',
-  IRIS_DISABLE_SCHEDULER: '1', TINYFISH_API_KEY: '', GEMINI_API_KEY: '', GROQ_API_KEY: '', OLLAMA_BASE_URL: '' };
-const server = spawn(process.env.PYTHON || 'python', ['-B', '-m', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', port],
-  { cwd: path.join(project, 'backend'), env, stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
-let logs = '';
-server.stderr.on('data', data => { logs += data.toString(); });
-const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+const env = {
+  ...process.env,
+  DATABASE_PATH: path.join(directory, "ui.db"),
+  DATABASE_URL: "",
+  IRIS_DISABLE_SCHEDULER: "1",
+  IRIS_MODE: "demo",
+  TINYFISH_API_KEY: "",
+  GEMINI_API_KEY: "",
+  GROQ_API_KEY: "",
+  OLLAMA_BASE_URL: "",
+};
+const server = spawn(
+  process.env.PYTHON || "python",
+  ["-B", "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", port],
+  {
+    cwd: path.join(project, "backend"),
+    env,
+    stdio: ["ignore", "ignore", "pipe"],
+    windowsHide: true,
+  },
+);
+let logs = "";
+server.stderr.on("data", (data) => {
+  logs += data.toString();
+});
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 (async () => {
   let browser;
   try {
     let ready = false;
     for (let attempt = 0; attempt < 80; attempt++) {
-      try { ready = (await fetch(`${base}/api/health`)).ok; } catch {}
+      try {
+        ready = (await fetch(`${base}/api/health`)).ok;
+      } catch {}
       if (ready) break;
       if (server.exitCode !== null) throw new Error(logs);
       await pause(250);
     }
-    assert(ready, 'Preview server did not start: ' + logs);
-    browser = await chromium.launch({ headless: true, ...(process.env.PLAYWRIGHT_CHANNEL ? { channel: process.env.PLAYWRIGHT_CHANNEL } : {}) });
-    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
+    assert(ready, "Preview server did not start: " + logs);
+    browser = await chromium.launch({
+      headless: true,
+      ...(process.env.PLAYWRIGHT_CHANNEL
+        ? { channel: process.env.PLAYWRIGHT_CHANNEL }
+        : {}),
+    });
+    const page = await browser.newPage({
+      viewport: { width: 1440, height: 1000 },
+      acceptDownloads: true,
+    });
     const errors = [];
-    page.on('pageerror', error => errors.push(error.message));
+    page.on("pageerror", (error) => errors.push(error.message));
     // Simulate venue Wi-Fi loss for external assets; the local app must still work.
-    await page.route('**/*', route => route.request().url().startsWith(base) ? route.continue() : route.abort());
+    await page.route("**/*", (route) =>
+      route.request().url().startsWith(base) ? route.continue() : route.abort(),
+    );
     async function singleView(view) {
-      await page.waitForFunction(expected => window.irisState?.ready && window.irisState.view === expected, view);
-      assert.equal(await page.locator('[data-view]:not([hidden])').count(), 1, `Stacked views on ${view}`);
+      await page.waitForFunction(
+        (expected) =>
+          window.irisState?.ready && window.irisState.view === expected,
+        view,
+      );
+      assert.equal(
+        await page.locator("[data-view]:not([hidden])").count(),
+        1,
+        `Stacked views on ${view}`,
+      );
       assert(await page.locator(`#view-${view}`).isVisible());
     }
     async function nav(view) {
       await page.locator(`#primary-navigation a[href="#${view}"]`).click();
       await singleView(view);
     }
-    async function screenshot(name) { await page.screenshot({ path: path.join(directory, name + '.png'), fullPage: false }); }
-    await page.goto(`${base}/#home`, { waitUntil: 'domcontentloaded' });
-    await singleView('home');
-    assert((await page.locator('#home-heading').innerText()).includes('Adarsh'));
-    await screenshot('home-desktop');
-    await nav('profile');
-    assert.equal(await page.locator('#view-profile .profile-container').count(), 1);
-    assert.equal(await page.locator('#view-profile .ai-context, #view-profile .upcoming-card').count(), 0);
-    await screenshot('profile-desktop');
-    await nav('opportunities');
-    await screenshot('opportunities-desktop');
+    async function screenshot(name) {
+      await page.screenshot({
+        path: path.join(directory, name + ".png"),
+        fullPage: false,
+      });
+    }
+    await page.goto(`${base}/#home`, { waitUntil: "domcontentloaded" });
+    await singleView("home");
+    assert(
+      (await page.locator("#home-heading").innerText()).includes("Adarsh"),
+    );
+    assert(
+      (await page.locator("#runtime-banner").innerText()).includes("DEMO MODE"),
+    );
+    await screenshot("home-desktop");
+    await nav("profile");
+    assert.equal(
+      await page.locator("#view-profile .profile-container").count(),
+      1,
+    );
+    assert.equal(
+      await page
+        .locator("#view-profile .ai-context, #view-profile .upcoming-card")
+        .count(),
+      0,
+    );
+    await screenshot("profile-desktop");
+    await nav("opportunities");
+    await screenshot("opportunities-desktop");
     await page.locator('[data-category="Internships"]').click();
-    assert((await page.locator('#opportunity-count').innerText()).includes('2 opportunities'));
+    assert(
+      (await page.locator("#opportunity-count").innerText()).includes(
+        "2 opportunities",
+      ),
+    );
     await page.locator('[data-action="clear-filters"]').click();
-    await page.locator('#opportunity-search').fill('Reliance');
-    assert.equal(await page.locator('#opportunity-results .opportunity-card').count(), 1);
-    await page.route('**/api/opportunities/reliance/save', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Saving is temporarily unavailable.' }) }));
+    await page.locator("#opportunity-search").fill("Reliance");
+    assert.equal(
+      await page.locator("#opportunity-results .opportunity-card").count(),
+      1,
+    );
+    await page.route("**/api/opportunities/reliance/save", (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: "Saving is temporarily unavailable." }),
+      }),
+    );
     await page.locator('#opportunity-results [data-action="save"]').click();
-    await page.waitForSelector('.toast.error');
-    assert.equal(await page.locator('#opportunity-results [data-action="save"]').getAttribute('aria-pressed'), 'false');
-    await page.unroute('**/api/opportunities/reliance/save');
+    await page.waitForSelector(".toast.error");
+    assert.equal(
+      await page
+        .locator('#opportunity-results [data-action="save"]')
+        .getAttribute("aria-pressed"),
+      "false",
+    );
+    await page.unroute("**/api/opportunities/reliance/save");
     await page.locator('#opportunity-results [data-action="save"]').click();
     await page.waitForFunction(() => window.irisState.saved.length === 1);
-    await nav('saved');
-    assert((await page.locator('#view-saved').innerText()).includes('Reliance'));
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await singleView('saved');
-    assert.equal(await page.locator('#view-saved .opportunity-card').count(), 1);
-    await page.locator('#view-saved .opportunity-card').click();
-    await singleView('detail');
-    await page.locator('#detail-heading').waitFor();
-    assert.equal(await page.locator('#view-detail .intelligence-card').count(), 3);
-    await screenshot('detail-desktop');
+    await nav("saved");
+    assert(
+      (await page.locator("#view-saved").innerText()).includes("Reliance"),
+    );
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await singleView("saved");
+    assert.equal(
+      await page.locator("#view-saved .opportunity-card").count(),
+      1,
+    );
+    await page.locator("#view-saved .opportunity-card").click();
+    await singleView("detail");
+    await page.locator("#detail-heading").waitFor();
+    assert.equal(
+      await page.locator("#view-detail .intelligence-card").count(),
+      3,
+    );
+    await screenshot("detail-desktop");
     await page.locator('#view-detail [data-action="apply"]').first().click();
-    await page.locator('#guide-track-button').waitFor();
-    assert((await page.locator('#apply-options-modal-body').innerText()).includes('From the catalog'));
+    await page.locator("#guide-track-button").waitFor();
+    assert(
+      (await page.locator("#apply-options-modal-body").innerText()).includes(
+        "From the catalog",
+      ),
+    );
     await page.locator('[data-guide-document="0"]').check();
-    await page.waitForFunction(() => document.getElementById('guide-document-status')?.textContent.includes('saved to IRIS'));
-    await page.locator('#guide-track-button').click();
-    await page.waitForFunction(() => document.getElementById('guide-track-button')?.textContent.includes('Tracked'));
-    await page.keyboard.press('Escape');
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await singleView('detail');
+    await page.waitForFunction(() =>
+      document
+        .getElementById("guide-document-status")
+        ?.textContent.includes("saved to IRIS"),
+    );
+    await page.locator("#guide-track-button").click();
+    await page.waitForFunction(() =>
+      document
+        .getElementById("guide-track-button")
+        ?.textContent.includes("Tracked"),
+    );
+    await page.keyboard.press("Escape");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await singleView("detail");
     await page.locator('#view-detail [data-action="apply"]').first().click();
-    await page.locator('#guide-track-button').waitFor();
+    await page.locator("#guide-track-button").waitFor();
     assert(await page.locator('[data-guide-document="0"]').isChecked());
-    assert((await page.locator('#guide-track-button').innerText()).includes('Tracked'));
-    const downloadPromise = page.waitForEvent('download');
-    await page.locator('#guide-calendar-button').click();
+    assert(
+      (await page.locator("#guide-track-button").innerText()).includes(
+        "Tracked",
+      ),
+    );
+    const downloadPromise = page.waitForEvent("download");
+    await page.locator("#guide-calendar-button").click();
     const download = await downloadPromise;
-    assert(download.suggestedFilename().endsWith('.ics'));
-    await page.keyboard.press('Escape');
-    await nav('applications');
-    assert.equal(await page.locator('.application-row').count(), 1);
-    await page.locator('[data-application-status="reliance"]').selectOption('Under Review');
-    await page.waitForFunction(() => window.irisState.applications[0]?.application_status === 'Under Review');
+    assert(download.suggestedFilename().endsWith(".ics"));
+    await page.keyboard.press("Escape");
+    await nav("applications");
+    assert.equal(await page.locator(".application-row").count(), 1);
+    await page
+      .locator('[data-application-status="reliance"]')
+      .selectOption("Under Review");
+    await page.waitForFunction(
+      () =>
+        window.irisState.applications[0]?.application_status === "Under Review",
+    );
     await page.locator('[data-status="Under Review"]').click();
-    assert.equal(await page.locator('.application-row').count(), 1);
-    await screenshot('applications-desktop');
-    const calendar = await page.evaluate(() => ({ year: irisState.calendar.year, month: irisState.calendar.month }));
+    assert.equal(await page.locator(".application-row").count(), 1);
+    await screenshot("applications-desktop");
+    const calendar = await page.evaluate(() => ({
+      year: irisState.calendar.year,
+      month: irisState.calendar.month,
+    }));
     const monthsBack = (calendar.year - 2025) * 12 + calendar.month - 5;
-    for (let month = 0; month < monthsBack; month++) await page.locator('[data-action="calendar-prev"]').click();
-    assert((await page.locator('.calendar-title').innerText()).includes('June 2025'));
+    for (let month = 0; month < monthsBack; month++)
+      await page.locator('[data-action="calendar-prev"]').click();
+    assert(
+      (await page.locator(".calendar-title").innerText()).includes("June 2025"),
+    );
     await page.locator('[data-action="calendar-today"]').click();
-    await nav('ai-assistant');
-    await screenshot('assistant-desktop');
-    const streamResponse = page.waitForResponse(response => response.url().endsWith('/api/assistant/ask'));
-    await page.locator('.starter-prompt').filter({ hasText: 'combine' }).click();
-    assert((await streamResponse).headers()['content-type'].includes('text/event-stream'));
-    await page.waitForFunction(() => !window.irisState.chatBusy && window.irisState.chat.length === 2);
-    const chat = await page.locator('#ai-chat-messages').innerText();
-    assert(chat.includes('exclusive tuition'));
-    assert(chat.includes('stackable'));
-    assert(!chat.includes('$0'), 'Assistant lists must render their actual contents');
-    assert(await page.locator('.message-sources .source-card').count() > 0);
-    await nav('profile');
-    await page.locator('#resume-upload').setInputFiles({ name: 'journey-resume.txt', mimeType: 'text/plain', buffer: Buffer.from('Adarsh Maurya\nB.Tech CSE 1st Year, GGSIPU USAR, Delhi\nSkills: Python, React, FastAPI, Machine Learning') });
-    await page.waitForFunction(() => window.irisState.profile?.resume_filename === 'journey-resume.txt');
-    await page.waitForFunction(() => document.querySelector('.resume-bar')?.textContent.includes('journey-resume.txt'));
-    assert((await page.locator('.resume-bar').innerText()).includes('journey-resume.txt'));
+    await nav("ai-assistant");
+    await screenshot("assistant-desktop");
+    const streamResponse = page.waitForResponse((response) =>
+      response.url().endsWith("/api/assistant/ask"),
+    );
+    await page
+      .locator(".starter-prompt")
+      .filter({ hasText: "combine" })
+      .click();
+    assert(
+      (await streamResponse)
+        .headers()
+        ["content-type"].includes("text/event-stream"),
+    );
+    await page.waitForFunction(
+      () => !window.irisState.chatBusy && window.irisState.chat.length === 2,
+    );
+    const chat = await page.locator("#ai-chat-messages").innerText();
+    assert(chat.includes("exclusive tuition"));
+    assert(chat.includes("stackable"));
+    assert(
+      !chat.includes("$0"),
+      "Assistant lists must render their actual contents",
+    );
+    assert((await page.locator(".message-sources .source-card").count()) > 0);
+    await nav("profile");
+    await page
+      .locator("#resume-upload")
+      .setInputFiles({
+        name: "journey-resume.txt",
+        mimeType: "text/plain",
+        buffer: Buffer.from(
+          "Adarsh Maurya\nB.Tech CSE 1st Year, GGSIPU USAR, Delhi\nSkills: Python, React, FastAPI, Machine Learning",
+        ),
+      });
+    await page.waitForFunction(
+      () => window.irisState.profile?.resume_filename === "journey-resume.txt",
+    );
+    await page.waitForFunction(() =>
+      document
+        .querySelector(".resume-bar")
+        ?.textContent.includes("journey-resume.txt"),
+    );
+    assert(
+      (await page.locator(".resume-bar").innerText()).includes(
+        "journey-resume.txt",
+      ),
+    );
     await page.locator('#view-profile a[href="#onboarding/1"]').first().click();
-    await singleView('onboarding');
-    await page.locator('#setup-graduation').selectOption('2028');
-    await page.locator('#setup-university').fill('GGSIPU USAR');
-    await page.locator('#setup-skills').fill('TypeScript');
-    await page.locator('#setup-skills').press('Enter');
-    await screenshot('onboarding-step-one');
-    await page.route('**/api/profile/update', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'Profile save is temporarily unavailable.' }) }));
-    await page.locator('#wizard-continue').click();
-    await page.locator('#wizard-form-error').waitFor();
-    assert.equal(await page.locator('#onboarding-form').count(), 1, 'Failed save must not advance onboarding');
-    await page.unroute('**/api/profile/update');
-    await page.locator('#wizard-continue').click();
-    await page.locator('.interest-grid').waitFor();
-    assert.equal(await page.evaluate(() => window.scrollY), 0, 'Each onboarding step should start at the top');
-    for (const domain of ['Scholarships', 'Hackathons', 'Student Offers']) await page.locator(`[data-domain="${domain}"]`).click();
-    await screenshot('onboarding-step-two');
-    await page.locator('#wizard-finish').click();
-    await singleView('opportunities');
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await singleView('opportunities');
-    assert.deepEqual(await page.evaluate(() => [...irisState.profile.domains].sort()), ['Hackathons', 'Scholarships', 'Student Offers']);
-    assert((await page.evaluate(() => irisState.profile.skills)).includes('TypeScript'));
-    await nav('settings');
+    await singleView("onboarding");
+    await page.locator("#setup-marks").fill("89");
+    await page.locator("#setup-income").fill("400000");
+    await page.locator("#setup-ranking").selectOption("true");
+    await page.locator("#setup-graduation").selectOption("2028");
+    await page.locator("#setup-university").fill("GGSIPU USAR");
+    await page.locator("#setup-skills").fill("TypeScript");
+    await page.locator("#setup-skills").press("Enter");
+    await screenshot("onboarding-step-one");
+    await page.route("**/api/profile/update", (route) =>
+      route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail: "Profile save is temporarily unavailable.",
+        }),
+      }),
+    );
+    await page.locator("#wizard-continue").click();
+    await page.locator("#wizard-form-error").waitFor();
+    assert.equal(
+      await page.locator("#onboarding-form").count(),
+      1,
+      "Failed save must not advance onboarding",
+    );
+    await page.unroute("**/api/profile/update");
+    await page.locator("#wizard-continue").click();
+    await page.locator(".interest-grid").waitFor();
+    assert.equal(
+      await page.evaluate(() => window.scrollY),
+      0,
+      "Each onboarding step should start at the top",
+    );
+    for (const domain of ["Scholarships", "Hackathons", "Student Offers"])
+      await page.locator(`[data-domain="${domain}"]`).click();
+    await screenshot("onboarding-step-two");
+    await page.locator("#wizard-finish").click();
+    await singleView("opportunities");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await singleView("opportunities");
+    assert.deepEqual(
+      await page.evaluate(() => [...irisState.profile.domains].sort()),
+      ["Hackathons", "Scholarships", "Student Offers"],
+    );
+    assert(
+      (await page.evaluate(() => irisState.profile.skills)).includes(
+        "TypeScript",
+      ),
+    );
+    await nav("settings");
     await page.locator('[data-preference="reduce_motion"]').check();
-    await page.waitForFunction(() => window.irisState.profile.preferences.reduce_motion === true);
-    await page.locator('#scanner-query-input').fill('Unknown test opportunity');
-    await page.locator('#scanner-verify-btn').click();
-    await page.waitForFunction(() => document.getElementById('scan-result')?.textContent.includes('not completed'));
-    await screenshot('settings-desktop');
-    await nav('profile');
+    await page.waitForFunction(
+      () => window.irisState.profile.preferences.reduce_motion === true,
+    );
+    await page.locator("#scanner-query-input").fill("Unknown test opportunity");
+    await page.locator("#scanner-verify-btn").click();
+    await page.waitForFunction(() =>
+      document
+        .getElementById("scan-result")
+        ?.textContent.includes("not completed"),
+    );
+    const exportReady = page.waitForEvent("download");
+    await page.locator('[data-action="export-data"]').click();
+    assert.equal(
+      (await exportReady).suggestedFilename(),
+      "iris-workspace.json",
+    );
+    assert.equal(await page.evaluate(() => irisState.profile.class_12_pct), 89);
+    await page.locator('[data-action="remove-resume"]').click();
+    await page.waitForFunction(() => !irisState.profile.resume_filename);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await singleView("settings");
+    assert.equal(await page.evaluate(() => irisState.profile.class_12_pct), 89);
+    await screenshot("settings-desktop");
+    await nav("profile");
     await page.setViewportSize({ width: 390, height: 844 });
-    await screenshot('profile-mobile');
-    for (const view of ['home', 'opportunities', 'saved', 'applications', 'profile', 'ai-assistant', 'settings']) {
-      await page.goto(`${base}/#${view}`, { waitUntil: 'domcontentloaded' });
+    await screenshot("profile-mobile");
+    for (const view of [
+      "home",
+      "opportunities",
+      "saved",
+      "applications",
+      "profile",
+      "ai-assistant",
+      "settings",
+    ]) {
+      await page.goto(`${base}/#${view}`, { waitUntil: "domcontentloaded" });
       await singleView(view);
-      assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `Horizontal overflow on ${view}`);
+      assert(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth + 1,
+        ),
+        `Horizontal overflow on ${view}`,
+      );
     }
-    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
-    await singleView('opportunities');
-    await page.waitForFunction(() => document.activeElement?.id === 'opportunity-search');
-    await page.locator('#opportunity-search').fill('Reliance');
-    await page.locator('#opportunity-results .opportunity-card').click();
+    await page.keyboard.press(
+      process.platform === "darwin" ? "Meta+k" : "Control+k",
+    );
+    await singleView("opportunities");
+    await page.waitForFunction(
+      () => document.activeElement?.id === "opportunity-search",
+    );
+    await page.locator("#opportunity-search").fill("Reliance");
+    await page.locator("#opportunity-results .opportunity-card").click();
     await page.locator('#view-detail [data-action="apply"]').first().click();
-    await page.locator('#guide-calendar-button').scrollIntoViewIfNeeded();
-    const bounds = await page.locator('#apply-options-modal').boundingBox();
-    assert(bounds.x >= 0 && bounds.x + bounds.width <= 391, 'Modal exceeds mobile viewport');
-    assert(await page.locator('#guide-calendar-button').isVisible());
-    await screenshot('guide-mobile');
-    await page.keyboard.press('Escape');
+    await page.locator("#guide-calendar-button").scrollIntoViewIfNeeded();
+    const bounds = await page.locator("#apply-options-modal").boundingBox();
+    assert(
+      bounds.x >= 0 && bounds.x + bounds.width <= 391,
+      "Modal exceeds mobile viewport",
+    );
+    assert(await page.locator("#guide-calendar-button").isVisible());
+    await screenshot("guide-mobile");
+    await page.keyboard.press("Escape");
     await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto(`${base}/#login`, { waitUntil: 'domcontentloaded' });
-    await singleView('login');
-    await page.locator('#auth-email').fill('missing@example.test');
-    await page.locator('#auth-password').fill('wrong-password');
-    await page.locator('#auth-submit').click();
-    await page.locator('#auth-error').waitFor();
-    assert((await page.locator('#auth-error').innerText()).includes('Invalid'));
+    await page.goto(`${base}/#login`, { waitUntil: "domcontentloaded" });
+    await singleView("login");
+    await page.locator("#auth-email").fill("missing@example.test");
+    await page.locator("#auth-password").fill("wrong-password");
+    await page.locator("#auth-submit").click();
+    await page.locator("#auth-error").waitFor();
+    assert((await page.locator("#auth-error").innerText()).includes("Invalid"));
     await page.locator('[data-action="auth-switch"]').click();
-    await page.locator('#auth-name').fill('Arjun Sharma');
-    await page.locator('#auth-email').fill('arjun@example.test');
-    await page.locator('#auth-password').fill('Password123!');
-    await page.locator('#auth-submit').click();
-    await singleView('onboarding');
-    assert.equal(await page.locator('#setup-name').inputValue(), 'Arjun Sharma');
-    assert.equal(await page.evaluate(() => irisState.saved.length), 0, 'A new account must not inherit the shared sample shortlist');
-    await page.locator('#setup-age').fill('19');
-    await page.locator('#setup-state').fill('Delhi');
-    await page.locator('#setup-degree').fill('B.Tech (1st Year)');
-    await page.locator('#setup-university').fill('GGSIPU USAR');
-    await page.locator('#setup-graduation').selectOption('2029');
-    await page.locator('#wizard-continue').click();
+    await page.locator("#auth-name").fill("Arjun Sharma");
+    await page.locator("#auth-email").fill("arjun@example.test");
+    await page.locator("#auth-password").fill("Password123!");
+    await page.locator("#auth-submit").click();
+    await singleView("onboarding");
+    assert.equal(
+      await page.locator("#setup-name").inputValue(),
+      "Arjun Sharma",
+    );
+    assert.equal(
+      await page.evaluate(() => irisState.saved.length),
+      0,
+      "A new account must not inherit the shared sample shortlist",
+    );
+    await page.locator("#setup-age").fill("19");
+    await page.locator("#setup-state").fill("Delhi");
+    await page.locator("#setup-degree").fill("B.Tech (1st Year)");
+    await page.locator("#setup-university").fill("GGSIPU USAR");
+    await page.locator("#setup-graduation").selectOption("2029");
+    await page.locator("#wizard-continue").click();
     await page.locator('[data-domain="Scholarships"]').click();
-    await page.locator('#wizard-finish').click();
-    await singleView('opportunities');
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await singleView('opportunities');
-    assert.equal(await page.evaluate(() => irisState.profile.name), 'Arjun Sharma');
-    assert.deepEqual(errors, [], 'Browser JavaScript errors');
-    console.log('PASS: eight isolated views, filters/search, persisted saves, guides/checklists, application statuses, calendars, streamed RAG, resume upload, both onboarding steps, preferences, authentication, API failures, keyboard search and mobile layout.');
-    console.log('Screenshots: ' + directory);
+    await page.locator("#wizard-finish").click();
+    await singleView("opportunities");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await singleView("opportunities");
+    assert.equal(
+      await page.evaluate(() => irisState.profile.name),
+      "Arjun Sharma",
+    );
+    assert.deepEqual(errors, [], "Browser JavaScript errors");
+    console.log(
+      "PASS: eight isolated views, filters/search, persisted saves, guides/checklists, application statuses, calendars, streamed RAG, resume upload, both onboarding steps, preferences, authentication, API failures, keyboard search and mobile layout.",
+    );
+    console.log("Screenshots: " + directory);
   } finally {
     if (browser) await browser.close();
-    if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(server.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+    if (process.platform === "win32")
+      spawnSync("taskkill", ["/PID", String(server.pid), "/T", "/F"], {
+        windowsHide: true,
+        stdio: "ignore",
+      });
     else server.kill();
     server.stderr.destroy();
     server.unref();
   }
-})().catch(error => { console.error(error); process.exitCode = 1; });
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

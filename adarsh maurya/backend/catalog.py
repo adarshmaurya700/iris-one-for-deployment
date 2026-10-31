@@ -69,6 +69,37 @@ GUIDES = {
 }
 
 
+def verification_state(opp):
+    """Derive public truth at read time, even when the scheduler is stopped."""
+    from runtime_config import mode
+    status = opp.get('verification_status') or 'SEEDED_CACHE'
+    deadline = opp.get('deadline_iso') or opp.get('deadline') or ''
+    checked = opp.get('last_verified_at') or ''
+    fresh = False
+    if checked:
+        try:
+            timestamp = datetime.fromisoformat(checked.replace('Z', '+00:00'))
+            age = (datetime.now(timezone.utc) - timestamp).total_seconds()
+            fresh = 0 <= age <= 12 * 3600
+        except (ValueError, TypeError):
+            pass
+    if deadline and deadline < today_in_india().isoformat():
+        status = 'EXPIRED'
+    elif status == 'VERIFIED_LIVE' and not fresh:
+        status = 'PREVIOUSLY_VERIFIED' if checked else 'VERIFICATION_PENDING'
+    elif status == 'CACHE_ONLY' and checked:
+        status = 'PREVIOUSLY_VERIFIED'
+    if mode() == 'demo' and status == 'VERIFIED_LIVE':
+        status = 'PREVIOUSLY_VERIFIED'
+    channels = json_value(opp.get('application_channels_json'))
+    channels = [{**item, 'verified': status == 'VERIFIED_LIVE' and bool(item.get('verified')),
+                 'badge': 'Apply Live' if status == 'VERIFIED_LIVE' and item.get('verified') else 'Open'} for item in channels if isinstance(item, dict)]
+    return {'verification_status': status, 'is_live_verified': status == 'VERIFIED_LIVE',
+            'application_channels_json': json.dumps(channels),
+            'data_provenance': 'reference_fixture' if not checked else 'previous_live_observation',
+            'is_simulated': mode() == 'demo'}
+
+
 def application_metadata(opp):
     gates = json_value(opp.get('eligibility_json'), {})
     guide = GUIDES.get(opp.get('slug'), {})
