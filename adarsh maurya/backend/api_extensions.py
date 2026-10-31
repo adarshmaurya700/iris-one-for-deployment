@@ -8,6 +8,7 @@ from database import db_session, find_opportunity
 from application_service import how_to_apply, student_identity, track, calendar_event
 from ai_assistant import ask_local_cache
 from scheduler import get_scheduler_status, run_12h_verification_sync
+from security import assistant_limit, sync_limit, require_verification_access
 
 router = APIRouter()
 
@@ -35,7 +36,7 @@ def sync_status():
     return get_scheduler_status()
 
 
-@router.post('/api/sync/trigger', status_code=202)
+@router.post('/api/sync/trigger', status_code=202, dependencies=[Depends(sync_limit.check), Depends(require_verification_access)])
 def sync_trigger(background_tasks: BackgroundTasks, req: SyncRequest = SyncRequest()):
     if get_scheduler_status()['sync_running']:
         return {'status': 'already_running'}
@@ -43,7 +44,7 @@ def sync_trigger(background_tasks: BackgroundTasks, req: SyncRequest = SyncReque
     return {'status': 'queued', 'mode': 'live_if_configured' if req.live else 'cache_only'}
 
 
-@router.post('/api/assistant/ask')
+@router.post('/api/assistant/ask', dependencies=[Depends(assistant_limit.check)])
 async def ask(req: AskRequest, current_user=Depends(get_workspace_user), db=Depends(db_session)):
     identity = student_identity(current_user, req.student_id)
     if req.stream:

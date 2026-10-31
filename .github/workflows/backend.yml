@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: '22'
       - run: python -m pip install -r backend/requirements.txt
-      - run: python -B -m unittest discover -s backend -p test_backend.py -v
+      - run: python -B -m unittest discover -s backend -p 'test_*.py' -v
       - run: python -B backend/legacy_smoke.py
       - run: node --check frontend/js/app.js
       - run: npm install --no-save playwright && npx playwright install --with-deps chromium

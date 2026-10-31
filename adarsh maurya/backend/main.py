@@ -21,11 +21,13 @@ from fastapi import FastAPI, Depends, HTTPException, Query, status, UploadFile, 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from database import init_db, get_db, db_session, row_to_dict, rows_to_list, find_opportunity, DB_PATH
 from application_service import get_student_profile, student_identity, save_student_profile
-from catalog import today_in_india
+from catalog import today_in_india, verification_state
+from runtime_config import mode, production, validate_runtime
+from security import SlidingWindowRateLimiter, assistant_limit, verification_limit, auth_limit, require_admin, require_verification_access
 from seed_data import seed_opportunities, upsert_opportunity
 from matcher import calculate_match, score_catalog, parse_eligibility, eligibility_checklist, detect_conflicts
 from auth import (
@@ -58,11 +60,13 @@ from legacy_ai_assistant import process_assistant_chat
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    validate_runtime()
     # Initialize DB schemas on startup
     init_db()
     conn = get_db()
     try:
-        seed_opportunities(conn)
+        if mode() == 'demo' or os.environ.get('IRIS_SEED_REFERENCE') == '1':
+            seed_opportunities(conn)
     finally:
         conn.close()
 
@@ -98,28 +102,51 @@ async def add_security_headers(request: Request, call_next):
         try:
             payload = jwt.decode(cookie, SECRET_KEY, algorithms=['HS256'])
             candidate = payload.get('sub', '')
-            if isinstance(candidate, str) and candidate.startswith('guest:') and len(candidate) == 38:
+            if isinstance(candidate, str) and candidate.startswith('guest:') and len(candidate) == 38 and payload.get('mode') == mode():
                 identity = candidate
         except jwt.PyJWTError:
             pass
     new_cookie = identity is None
     if new_cookie:
         identity = 'guest:' + uuid.uuid4().hex
-        cookie = jwt.encode({'sub': identity, 'exp': datetime.now(timezone.utc) + timedelta(days=7)}, SECRET_KEY, algorithm='HS256')
+        cookie = jwt.encode({'sub': identity, 'mode': mode(), 'exp': datetime.now(timezone.utc) + timedelta(days=7)}, SECRET_KEY, algorithm='HS256')
     context = guest_identity.set(identity)
     try:
         response = await call_next(request)
     finally:
         guest_identity.reset(context)
     if new_cookie:
-        response.set_cookie('iris_workspace', cookie, max_age=7 * 86400, httponly=True, secure=request.url.scheme == 'https', samesite='lax')
+        response.set_cookie('iris_workspace', cookie, max_age=7 * 86400, httponly=True, secure=production() or request.url.scheme == 'https', samesite='lax')
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+    if request.url.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store'
+    if production():
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     return response
 
+@app.middleware('http')
+async def bounded_request_body(request: Request, call_next):
+    if request.method in ('POST', 'PUT', 'PATCH'):
+        limit = 6 * 1024 * 1024 if request.url.path == '/api/resume/analyze' else 256 * 1024
+        chunks, size = [], 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > limit:
+                return JSONResponse({'detail': 'Request body exceeds the allowed size.'}, status_code=413)
+            chunks.append(chunk)
+        request._body = b''.join(chunks)
+    return await call_next(request)
+
+
 # Configurable CORS via ALLOWED_ORIGINS (default '*' in dev)
-allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "*").strip()
-if not allowed_origins_env or allowed_origins_env == "*":
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "").strip()
+if not allowed_origins_env:
+    origins = []
+elif allowed_origins_env == "*":
     origins = ["*"]
 else:
     origins = [orig.strip() for orig in allowed_origins_env.split(",") if orig.strip()]
@@ -127,7 +154,7 @@ else:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
+    allow_credentials="*" not in origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -136,70 +163,39 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Sliding-Window In-Memory Rate Limiter (Protects AI Billing & Uploads)
 # ---------------------------------------------------------------------------
-class SlidingWindowRateLimiter:
-    """
-    Sliding-window in-memory rate limiter keyed by client IP address.
-    Provides non-blocking tracking and clear HTTP 429 Retry-After headers.
-    """
-    def __init__(self, max_requests: int, window_seconds: int, scope: str = "Rate limit"):
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self.scope = scope
-        self.hits = defaultdict(list)
-
-    def check(self, request: Request):
-        # Resolve true IP behind proxies (e.g. Render, Railway, Nginx)
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            client_ip = forwarded.split(",")[0].strip()
-        else:
-            client_ip = request.client.host if request.client else "127.0.0.1"
-
-        now = time.time()
-        cutoff = now - self.window_seconds
-
-        # Filter out timestamps outside current sliding window
-        valid_hits = [t for t in self.hits[client_ip] if t > cutoff]
-        if len(valid_hits) >= self.max_requests:
-            oldest = valid_hits[0]
-            retry_after = max(1, int(self.window_seconds - (now - oldest)))
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"{self.scope} exceeded (Max {self.max_requests} requests per {self.window_seconds // 60}m). Please retry in {retry_after}s.",
-                headers={"Retry-After": str(retry_after)},
-            )
-        valid_hits.append(now)
-        self.hits[client_ip] = valid_hits
-
-
 # Rate limiter instances for expensive routes
-ai_rate_limiter = SlidingWindowRateLimiter(
-    max_requests=10,
-    window_seconds=600,
-    scope="AI Discovery & Verification rate limit",
-)
+ai_rate_limiter = verification_limit
 resume_rate_limiter = SlidingWindowRateLimiter(
     max_requests=5,
     window_seconds=600,
     scope="Resume analysis upload rate limit",
 )
 
-chat_rate_limiter = SlidingWindowRateLimiter(
-    max_requests=30,
-    window_seconds=600,
-    scope="AI assistant rate limit",
-)
-chat_rate_limiter = SlidingWindowRateLimiter(
-    max_requests=30, window_seconds=600, scope="AI assistant rate limit"
-)
+chat_rate_limiter = assistant_limit
 
 # ---------------------------------------------------------------------------
 # Pydantic Schemas
 # ---------------------------------------------------------------------------
 class UserSignup(BaseModel):
-    email: str
-    password: str
-    name: str
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=8, max_length=72)
+    name: str = Field(min_length=1, max_length=120)
+
+    @field_validator('password')
+    @classmethod
+    def password_bytes(cls, value):
+        if len(value.encode('utf-8')) > 72:
+            raise ValueError('Password must contain at most 72 UTF-8 bytes.')
+        return value
+
+    @field_validator('email')
+    @classmethod
+    def email_format(cls, value):
+        import re
+        value = value.strip().lower()
+        if not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', value):
+            raise ValueError('Enter a valid email address.')
+        return value
     college: Optional[str] = ""
     age: Optional[int] = 0
     state: Optional[str] = ""
@@ -209,8 +205,8 @@ class UserSignup(BaseModel):
 
 
 class UserLogin(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=254)
+    password: str = Field(min_length=1, max_length=72)
 
 
 
@@ -231,7 +227,7 @@ class ProfileUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 # Auth Routes (/api/auth)
 # ---------------------------------------------------------------------------
-@app.post("/api/auth/signup", status_code=status.HTTP_201_CREATED)
+@app.post("/api/auth/signup", status_code=status.HTTP_201_CREATED, dependencies=[Depends(auth_limit.check)])
 def signup(data: UserSignup, db: sqlite3.Connection = Depends(db_session)):
     """Creates a new student user, hashes password, and returns a JWT token."""
     cursor = db.cursor()
@@ -277,7 +273,7 @@ def signup(data: UserSignup, db: sqlite3.Connection = Depends(db_session)):
     }
 
 
-@app.post("/api/auth/login")
+@app.post("/api/auth/login", dependencies=[Depends(auth_limit.check)])
 def login(data: UserLogin, db: sqlite3.Connection = Depends(db_session)):
     """Verifies user credentials and returns a JWT access token."""
     cursor = db.cursor()
@@ -387,21 +383,23 @@ def health_check(db: sqlite3.Connection = Depends(db_session)):
 
     return {
         "status": "ok",
-        "service": "IRIS onE Production API",
+        "service": "IRIS onE API",
+        "operating_mode": mode(),
         "version": "1.0.0",
         "database": {
             "status": "connected",
-            "path": DB_PATH,
+            "engine": "PostgreSQL" if hasattr(db, "raw") else "SQLite",
             "total_opportunities": opp_count,
-            "active_verified_opportunities": active_opp_count,
-            "total_users": user_count,
+            "active_catalog_records": active_opp_count,
+            "active_verified_opportunities": sum(verification_state(dict(row))["is_live_verified"] for row in db.execute("SELECT * FROM opportunities").fetchall()),
+
         },
         "scheduler": get_scheduler_status(),
-        "timestamp_utc": datetime.utcnow().isoformat() + "Z",
+        "timestamp_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
     }
 
 
-@app.post("/api/admin/refresh-catalog")
+@app.post("/api/admin/refresh-catalog", dependencies=[Depends(require_admin)])
 def admin_refresh_catalog(db: sqlite3.Connection = Depends(db_session)):
     """
     Admin endpoint to trigger immediate catalog re-audit, pruning expired
@@ -412,6 +410,16 @@ def admin_refresh_catalog(db: sqlite3.Connection = Depends(db_session)):
         "message": "Opportunity catalog successfully audited and refreshed.",
         "audit_summary": result,
     }
+
+
+def workspace_sets(db, user=None):
+    identity = student_identity(user)
+    saved = {row[0] for row in db.execute('SELECT opportunity_id FROM profile_saved WHERE student_id = ?', (identity,)).fetchall()}
+    applied = {row[0] for row in db.execute("SELECT opportunity_id FROM tracked_applications WHERE student_id = ? AND status != 'Saved'", (identity,)).fetchall()}
+    if user:
+        saved |= {row[0] for row in db.execute('SELECT opportunity_id FROM saved_opportunities WHERE user_id = ?', (user['id'],)).fetchall()}
+        applied |= {row[0] for row in db.execute('SELECT opportunity_id FROM applications WHERE user_id = ?', (user['id'],)).fetchall()}
+    return saved, applied
 
 
 # ---------------------------------------------------------------------------
@@ -449,18 +457,12 @@ def list_opportunities(
     opps = rows_to_list(rows)
 
     # Saved and applied IDs for the user
-    saved_ids = set()
-    applied_ids = set()
-    if current_user:
-        s_cursor = db.cursor()
-        s_cursor.execute("SELECT opportunity_id FROM saved_opportunities WHERE user_id = ?", (current_user["id"],))
-        saved_ids = {r[0] for r in s_cursor.fetchall()}
-        s_cursor.execute("SELECT opportunity_id FROM applications WHERE user_id = ?", (current_user["id"],))
-        applied_ids = {r[0] for r in s_cursor.fetchall()}
+    saved_ids, applied_ids = workspace_sets(db, current_user)
 
     profile = get_student_profile(db, student_identity(current_user), current_user)
     opps = score_catalog(profile, opps, saved_ids)
     for opp in opps:
+        opp.update(verification_state(opp))
         public_id = opp.get("slug") or opp["id"]
         opp["db_id"] = opp["id"]
         opp["id"] = public_id
@@ -488,7 +490,7 @@ async def web_search_route(q: str = Query(..., min_length=3, max_length=120)):
     try:
         return await search_web_opportunities(q)
     except Exception as e:
-        return {"results": [], "mode": "error", "error": str(e)[:120]}
+        return {"results": [], "mode": "error", "error": "Web search is unavailable; please try again later."}
 
 @app.get("/api/opportunities/{opportunity_id}")
 def get_opportunity(
@@ -510,27 +512,16 @@ def get_opportunity(
     opp["match"] = match_info
     opp["match_score"] = match_info["overall"]
 
-    is_saved = False
-    is_applied = False
-    if current_user:
-        cursor.execute(
-            "SELECT 1 FROM saved_opportunities WHERE user_id = ? AND opportunity_id = ?",
-            (current_user["id"], opportunity_id),
-        )
-        is_saved = cursor.fetchone() is not None
-
-        cursor.execute(
-            "SELECT 1 FROM applications WHERE user_id = ? AND opportunity_id = ?",
-            (current_user["id"], opportunity_id),
-        )
-        is_applied = cursor.fetchone() is not None
+    saved_ids, applied_ids = workspace_sets(db, current_user)
+    is_saved, is_applied = opportunity_id in saved_ids, opportunity_id in applied_ids
 
     opp["is_saved"] = is_saved
     opp["is_applied"] = is_applied
     opp["db_id"] = opp["id"]
     opp["id"] = opp.get("slug") or opp["id"]
     opp["eligibility_gates"] = parse_eligibility(opp)
-    opp["eligibility_checklist"] = eligibility_checklist(current_user, opp)
+    opp["eligibility_checklist"] = eligibility_checklist(profile, opp)
+    opp.update(verification_state(opp))
     opp["ai_match_reason"] = match_info.get("ai_match_reason")
 
     return opp
@@ -559,6 +550,8 @@ def save_opportunity(
         "INSERT OR IGNORE INTO saved_opportunities (user_id, opportunity_id) VALUES (?, ?)",
         (current_user["id"], real_id),
     )
+    from catalog import utc_now
+    cursor.execute('INSERT INTO profile_saved (student_id, opportunity_id, created_at) VALUES (?, ?, ?) ON CONFLICT(student_id, opportunity_id) DO NOTHING', (student_identity(current_user), real_id, utc_now()))
     db.commit()
 
     return {
@@ -582,14 +575,16 @@ def remove_saved_opportunity(
     cursor = db.cursor()
     if real_id:
         cursor.execute(
-            "DELETE FROM saved_opportunities WHERE user_id = ? AND (opportunity_id = ? OR opportunity_id = ?)",
-            (current_user["id"], real_id, opportunity_id),
+            "DELETE FROM saved_opportunities WHERE user_id = ? AND opportunity_id = ?",
+            (current_user["id"], real_id),
         )
     else:
         cursor.execute(
-            "DELETE FROM saved_opportunities WHERE user_id = ? AND opportunity_id = ?",
-            (current_user["id"], opportunity_id),
+            "DELETE FROM saved_opportunities WHERE user_id = ? AND 1 = 0",
+            (current_user["id"],),
         )
+    if real_id:
+        cursor.execute('DELETE FROM profile_saved WHERE student_id = ? AND opportunity_id = ?', (student_identity(current_user), real_id))
     db.commit()
 
     return {
@@ -622,10 +617,11 @@ def list_saved_opportunities(
     applied_ids = {r[0] for r in cursor.fetchall()}
 
     for opp in opps:
+        opp.update(verification_state(opp))
         public_id = opp.get("slug") or opp["id"]
         opp["db_id"] = opp["id"]
         opp["id"] = public_id
-        match_info = calculate_match(current_user, opp)
+        match_info = calculate_match(get_student_profile(db, student_identity(current_user), current_user), opp)
         opp["match"] = match_info
         opp["match_score"] = match_info["overall"]
         opp["is_saved"] = True
@@ -657,6 +653,8 @@ def track_application(
         "INSERT OR IGNORE INTO applications (user_id, opportunity_id, status) VALUES (?, ?, 'applied')",
         (current_user["id"], real_id),
     )
+    from application_service import track
+    track(db, opportunity_id, student_identity(current_user), 'Applied', None, current_user)
     db.commit()
 
     return {
@@ -688,10 +686,11 @@ def list_applications(
     apps = rows_to_list(rows)
 
     for item in apps:
+        item.update(verification_state(item))
         public_id = item.get("slug") or item["id"]
         item["db_id"] = item["id"]
         item["id"] = public_id
-        item["match"] = calculate_match(current_user, item)
+        item["match"] = calculate_match(get_student_profile(db, student_identity(current_user), current_user), item)
         item["match_score"] = item["match"]["overall"]
         item["is_applied"] = True
 
@@ -714,25 +713,20 @@ def get_dashboard_stats(
     - deadline_count: opportunities expiring within the next 7 days
     """
     cursor = db.cursor()
-    today = date.today()
+    today = today_in_india()
 
-    cursor.execute("SELECT * FROM opportunities")
+    cursor.execute("SELECT * FROM opportunities WHERE is_verified_active = 1 AND (deadline_iso = '' OR deadline_iso >= ?)", (today_in_india().isoformat(),))
     all_opps = rows_to_list(cursor.fetchall())
 
     # Average match score of top 10 opportunities
-    match_scores = [calculate_match(current_user, opp)["overall"] for opp in all_opps]
+    match_scores = [calculate_match(get_student_profile(db, student_identity(current_user), current_user), opp)["overall"] for opp in all_opps]
     match_scores.sort(reverse=True)
     top_10 = match_scores[:10]
     avg_top_match = round(sum(top_10) / len(top_10), 1) if top_10 else 0.0
 
     # User saved & applied counts
-    saved_count = 0
-    applied_count = 0
-    if current_user:
-        cursor.execute("SELECT COUNT(*) FROM saved_opportunities WHERE user_id = ?", (current_user["id"],))
-        saved_count = cursor.fetchone()[0]
-        cursor.execute("SELECT COUNT(*) FROM applications WHERE user_id = ?", (current_user["id"],))
-        applied_count = cursor.fetchone()[0]
+    saved_ids, applied_ids = workspace_sets(db, current_user)
+    saved_count, applied_count = len(saved_ids), len(applied_ids)
 
     # Deadlines count in next 7 days
     deadline_count = 0
@@ -798,7 +792,7 @@ def get_upcoming_deadlines(
     rows = cursor.fetchall()
     opps = rows_to_list(rows)
 
-    today = date.today()
+    today = today_in_india()
     results = []
     for opp in opps:
         dl_str = opp.get("deadline", "")
@@ -809,7 +803,7 @@ def get_upcoming_deadlines(
         except (ValueError, TypeError):
             days_left = 999
 
-        match_info = calculate_match(current_user, opp)
+        match_info = calculate_match(get_student_profile(db, student_identity(current_user), current_user), opp)
         opp["match"] = match_info
         opp["match_score"] = match_info["overall"]
         opp["days_left"] = days_left
@@ -850,19 +844,13 @@ def search_opportunities(
             (like_pattern, like_pattern, like_pattern, like_pattern, like_pattern),
         )
 
-    opps = rows_to_list(cursor.fetchall())
+    opps = [dict(row) for row in cursor.fetchall() if row['is_verified_active'] and (not row['deadline_iso'] or row['deadline_iso'] >= today_in_india().isoformat())]
 
-    saved_ids = set()
-    applied_ids = set()
-    if current_user:
-        s_cursor = db.cursor()
-        s_cursor.execute("SELECT opportunity_id FROM saved_opportunities WHERE user_id = ?", (current_user["id"],))
-        saved_ids = {r[0] for r in s_cursor.fetchall()}
-        s_cursor.execute("SELECT opportunity_id FROM applications WHERE user_id = ?", (current_user["id"],))
-        applied_ids = {r[0] for r in s_cursor.fetchall()}
+    saved_ids, applied_ids = workspace_sets(db, current_user)
 
     for opp in opps:
-        match_info = calculate_match(current_user, opp)
+        opp.update(verification_state(opp))
+        match_info = calculate_match(get_student_profile(db, student_identity(current_user), current_user), opp)
         opp["match"] = match_info
         opp["match_score"] = match_info["overall"]
         opp["is_saved"] = opp["id"] in saved_ids
@@ -878,39 +866,10 @@ def search_opportunities(
 @app.get("/api/verification/sample")
 def get_verification_sample():
     """Returns real-time verification comparison between messy scraped data and clean verified JSON."""
-    return {
-        "accuracy_score": "99.9%",
-        "checks_passed": 1420,
-        "scraped_data": {
-            "raw_html_dump": "<div class='notice font-bold text-red'>LAST DATE TO APPLY: 31st May 2026 / OR EXTENDED?</div>",
-            "title_scraped": "Reliance  Foundation UG Schol.. (2026-27) NEW",
-            "stipend_unparsed": "Up to Rs 2,00,000 OR 2.6 Lakhs/yr (hostel included?)",
-            "eligibility_raw": "All btech student 1st/2nd yr with min 60% or 7.5 CGPA in 12th/diploma",
-            "portal_status": "HTTP 302 Redirect via unverified aggregator",
-            "last_crawled_iso": "2026-10-15T18:42:10Z",
-            "schema_valid": False,
-            "duplicate_risk": "High (3 similar records found)"
-        },
-        "verified_data": {
-            "canonical_title": "Reliance Foundation Undergraduate Scholarship",
-            "organization": "Reliance Foundation",
-            "verified_deadline": "2026-05-31",
-            "standardized_amount": "₹ 2,60,000 / year",
-            "eligibility": "B.Tech Undergraduates (1st & 2nd Year), Merit > 75%",
-            "official_portal_url": "https://www.reliancefoundation.org/scholarships",
-            "ssl_verified": True,
-            "deduplication_hash": "SHA256:7f83b1657ff1fc53",
-            "schema_valid": True,
-            "ai_confidence": 0.999
-        },
-        "transformations": [
-            "Extracted canonical title & eliminated extraneous HTML/BBCode tags",
-            "Resolved conflicting stipend values against official CSR gazette",
-            "Parsed and ISO-standardized deadline to 2026-05-31",
-            "Verified SSL certificate & cryptographic domain origin",
-            "Vectorized skills embedding for 92% semantic matching"
-        ]
-    }
+    return {'mode': 'demo', 'is_simulated': True, 'is_verified': False,
+            'message': 'Illustration only. No portal or accuracy measurement was performed.',
+            'scraped_data': {'title': 'Example opportunity (simulated)'},
+            'verified_data': None, 'transformations': ['Validate the schema', 'Inspect a real application action', 'Record actual evidence']}
 
 
 class VerifyOpportunityRequest(BaseModel):
@@ -921,7 +880,7 @@ class VerifyOpportunityRequest(BaseModel):
     live_agent: Optional[bool] = True
 
 
-@app.post("/api/verify-opportunity", dependencies=[Depends(ai_rate_limiter.check)])
+@app.post("/api/verify-opportunity", dependencies=[Depends(require_verification_access)])
 async def verify_opportunity_endpoint(
     req: VerifyOpportunityRequest,
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
@@ -930,7 +889,7 @@ async def verify_opportunity_endpoint(
     """
     Two-Filter Opportunity Verification Engine:
       Filter 1: TinyFish Ingestion (TinySearch -> TinyFetch -> TinyAgent Mako)
-      Filter 2: Gemini 2.5 Flash Structured Validation & Profile Cross-Check
+      Filter 2: configured Gemini model Structured Validation & Profile Cross-Check
     """
     from verification import verify_and_store
     opp = find_opportunity(db, req.opportunity_id or 'reliance')
@@ -940,7 +899,7 @@ async def verify_opportunity_endpoint(
     return await verify_and_store(db, opp['title'], opp, live=bool(req.live_agent), profile=profile)
 
 
-@app.get("/api/verify-opportunity/{opportunity_id}")
+@app.get("/api/verify-opportunity/{opportunity_id}", dependencies=[Depends(require_verification_access)])
 async def verify_opportunity_get(
     opportunity_id: str,
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
@@ -965,7 +924,7 @@ async def analyze_resume_endpoint(
     """
     Analyzes resume (.pdf, .docx, .txt) or sample_resume.txt.
     Enforces a strict 5 MB file size limit and MIME validation with clear HTTP 400/413 errors.
-    Structures profile via Gemini 2.5 Flash (with resilient fallback).
+    Structures profile via configured Gemini model (with resilient fallback).
     """
     raw_text = None
     data = None
@@ -984,7 +943,7 @@ async def analyze_resume_endpoint(
             pass
 
     if file and not use_sample and not raw_text:
-        filename = file.filename or "uploaded_resume.pdf"
+        filename = (file.filename or "uploaded_resume.pdf").replace("\\", "/").split("/")[-1][:180]
         ext = os.path.splitext(filename)[1].lower()
         allowed_extensions = {".pdf", ".docx", ".txt"}
         if ext not in allowed_extensions:
@@ -1007,20 +966,28 @@ async def analyze_resume_endpoint(
             )
 
         max_bytes = 5 * 1024 * 1024  # 5 MB
-        data = await file.read()
+        data = await file.read(max_bytes + 1)
+        await file.close()
         if len(data) > max_bytes:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail=f"Uploaded file exceeds the maximum 5 MB limit ({len(data)} bytes).",
             )
     elif not raw_text:
+        if not use_sample:
+            raise HTTPException(400, 'Choose a resume or explicitly select the demo sample.')
+        if mode() != 'demo':
+            raise HTTPException(409, 'Sample resumes are available only in demo mode.')
         raw_text = load_sample_resume_text()
+    if raw_text is not None and (not isinstance(raw_text, str) or len(raw_text.encode('utf-8')) > 100000):
+        raise HTTPException(413, 'Pasted resume text exceeds the 100 KB limit.')
 
     profile = await analyze_resume_bytes(filename=filename, data=data, raw_text=raw_text)
     identity = student_identity(current_user)
     if raw_text is None and data:
         from resume_analyzer import extract_text_from_bytes
-        raw_text = extract_text_from_bytes(filename, data)
+        import asyncio
+        raw_text = await asyncio.to_thread(extract_text_from_bytes, filename, data)
     from catalog import utc_now
     saved_profile = save_student_profile(db, identity, {**profile, 'resume_filename': filename, 'resume_uploaded_at': utc_now()}, resume_text=raw_text or '')
 
@@ -1029,12 +996,13 @@ async def analyze_resume_endpoint(
             persisted = persist_profile_to_user(db, current_user["id"], profile)
             profile["user"] = persisted
         except Exception as e:
-            print("Failed to persist profile to user:", e)
+            raise HTTPException(500, "Your resume profile could not be saved. Please retry.") from None
 
     return {
         "success": True,
         "profile": profile,
-        "student_profile": saved_profile,
+        "student_profile": __import__("frontend_api").profile_payload(saved_profile),
+        "is_simulated": bool(use_sample),
         "filename": filename,
     }
 
@@ -1064,9 +1032,9 @@ async def match_opportunities_endpoint(
 
     profile = req.user_profile
     if not profile and current_user:
-        profile = current_user
+        profile = get_student_profile(db, student_identity(current_user), current_user)
     if not profile:
-        profile = get_student_profile(db)
+        profile = get_student_profile(db, student_identity(current_user), current_user)
 
     saved_ids = set()
     if current_user:
@@ -1074,6 +1042,7 @@ async def match_opportunities_endpoint(
         s_cursor.execute("SELECT opportunity_id FROM saved_opportunities WHERE user_id = ?", (current_user["id"],))
         saved_ids = {r[0] for r in s_cursor.fetchall()}
 
+    opps = [o for o in opps if not o.get('deadline_iso') or o['deadline_iso'] >= today_in_india().isoformat()]
     scored = score_catalog(profile, opps, saved_ids)
     for opp in scored:
         public_id = opp.get("slug") or opp["id"]
@@ -1081,6 +1050,9 @@ async def match_opportunities_endpoint(
         opp["id"] = public_id
         opp["is_saved"] = opp["db_id"] in saved_ids
         opp["checklist"] = eligibility_checklist(profile or {}, opp)
+
+    if req.opportunity_ids:
+        scored = [o for o in scored if str(o["id"]) in req.opportunity_ids or str(o["db_id"]) in req.opportunity_ids]
 
     if req.category:
         cat_lower = req.category.lower().strip()
@@ -1103,14 +1075,14 @@ class DiscoverVerifyRequest(BaseModel):
     live_agent: Optional[bool] = True
 
 
-@app.post("/api/opportunities/discover-and-verify", dependencies=[Depends(ai_rate_limiter.check)])
+@app.post("/api/opportunities/discover-and-verify", dependencies=[Depends(require_verification_access)])
 async def discover_and_verify_endpoint(
     req: DiscoverVerifyRequest,
     current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
     db: sqlite3.Connection = Depends(db_session),
 ):
     """
-    Stage A (TinySearch) -> Stage B (TinyFetch) -> Stage C (TinyAgent Mako) -> Filter 2 (Gemini 2.5 Flash).
+    Stage A (TinySearch) -> Stage B (TinyFetch) -> Stage C (TinyAgent Mako) -> Filter 2 (configured Gemini model).
     Extracts structured VerifiedOpportunity and upserts into SQLite opportunities table.
     Rate-limited to 10 requests per 10 minutes per IP.
     """
@@ -1126,7 +1098,7 @@ async def discover_and_verify_endpoint(
 # AI Assistant Route (/api/assistant/chat)
 # ---------------------------------------------------------------------------
 class AssistantChatRequest(BaseModel):
-    message: str
+    message: str = Field(min_length=1, max_length=4000)
     history: Optional[List[Dict[str, str]]] = []
     student_profile: Optional[Dict[str, Any]] = None
     active_opportunity_id: Optional[str] = None
@@ -1146,11 +1118,6 @@ async def assistant_chat_endpoint(
         db=db,
         current_user=current_user,
     )
-    from ai_assistant import DEFAULT_QUICK_PROMPTS, ask_local_cache
-    if result.get('mode') == 'fallback':
-        local = await ask_local_cache(req.message, student_identity(current_user), db, req.active_opportunity_id, current_user)
-        result.update(local, reply=local['answer'], suggested_opportunities=local['matched_opportunities'][:2])
-    result.setdefault('quick_prompts', DEFAULT_QUICK_PROMPTS)
     return result
 
 
@@ -1173,153 +1140,25 @@ def generate_opportunity_ics(
             detail=f"Opportunity {opportunity_id} not found."
         )
 
-    title = opp.get("title") or "Student Opportunity Deadline"
-    org = opp.get("organization") or "IRIS onE"
-    desc = opp.get("description") or f"Application deadline for {title}"
-    url = opp.get("url") or opp.get("source_url") or "https://iris-one.edu"
-
-    deadline_str = opp.get("deadline") or ""
-    try:
-        if deadline_str:
-            d_date = datetime.strptime(str(deadline_str)[:10], "%Y-%m-%d").date()
-        else:
-            d_date = date.today() + timedelta(days=14)
-    except Exception:
-        d_date = date.today() + timedelta(days=14)
-
-    start_str = d_date.strftime("%Y%m%d")
-    end_date = d_date + timedelta(days=1)
-    end_str = end_date.strftime("%Y%m%d")
-    now_str = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-    uid = f"iris-{opp.get('slug') or opp.get('id')}@{d_date.isoformat()}"
-
-    ics_content = f"""BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//IRIS onE//Student Opportunity Verification Engine//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-BEGIN:VEVENT
-UID:{uid}
-DTSTAMP:{now_str}
-DTSTART;VALUE=DATE:{start_str}
-DTEND;VALUE=DATE:{end_str}
-SUMMARY:Deadline: {title} ({org})
-DESCRIPTION:{desc.replace(chr(10), ' ')} - Official Link: {url}
-LOCATION:{opp.get('location') or 'Online / PAN India'}
-URL:{url}
-STATUS:CONFIRMED
-BEGIN:VALARM
-TRIGGER:-PT72H
-ACTION:DISPLAY
-DESCRIPTION:Reminder: 3 days remaining to apply for {title}!
-END:VALARM
-BEGIN:VALARM
-TRIGGER:-PT24H
-ACTION:DISPLAY
-DESCRIPTION:Urgent: 24 hours left to submit application for {title}!
-END:VALARM
-END:VEVENT
-END:VCALENDAR
-""".replace("\r\n", "\n").replace("\n", "\r\n")
-
-    filename = f"{(opp.get('slug') or 'opportunity')}-deadline.ics"
-    return Response(
-        content=ics_content,
-        media_type="text/calendar",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
-        }
-    )
+    from application_service import calendar_event
+    return Response(calendar_event(opp), media_type='text/calendar', headers={'Content-Disposition': 'attachment; filename="iris-deadline.ics"'})
 
 
 @app.get("/api/users/{user_id}/calendar.ics")
-def generate_user_calendar_ics(
-    user_id: int,
-    db: sqlite3.Connection = Depends(db_session),
-):
-    """
-    Subscribable Webcal feed (.ics) for all saved opportunities of a student.
-    Contains RFC 5545 VEVENTs with -PT72H (3-day) and -PT24H (1-day) VALARM reminders.
-    """
-    cursor = db.cursor()
-    cursor.execute(
-        """
-        SELECT o.* FROM opportunities o
-        INNER JOIN saved_opportunities s ON o.id = s.opportunity_id
-        WHERE s.user_id = ?
-        ORDER BY o.deadline ASC
-        """,
-        (user_id,),
-    )
-    saved_opps = rows_to_list(cursor.fetchall())
-
-    # Fallback to top upcoming opportunities if user hasn't saved any yet
-    if not saved_opps:
-        cursor.execute("SELECT * FROM opportunities WHERE deadline != '' ORDER BY deadline ASC LIMIT 5")
-        saved_opps = rows_to_list(cursor.fetchall())
-
-    now_str = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+def generate_user_calendar_ics(user_id: int, current_user=Depends(get_current_user), db=Depends(db_session)):
+    if user_id != current_user['id']:
+        raise HTTPException(403, 'This calendar belongs to another account.')
+    from application_service import calendar_event
+    records = db.execute('SELECT o.* FROM opportunities o JOIN saved_opportunities s ON s.opportunity_id = o.id WHERE s.user_id = ?', (user_id,)).fetchall()
     events = []
-
-    for opp in saved_opps:
-        title = opp.get("title") or "Opportunity Deadline"
-        org = opp.get("organization") or "IRIS onE"
-        desc = (opp.get("description") or f"Application deadline for {title}").replace("\n", " ")
-        url = opp.get("url") or opp.get("source_url") or "https://iris-one.edu"
-        dl_str = opp.get("deadline") or ""
+    for row in records:
         try:
-            if dl_str:
-                d_date = datetime.strptime(str(dl_str)[:10], "%Y-%m-%d").date()
-            else:
-                d_date = date.today() + timedelta(days=14)
-        except Exception:
-            d_date = date.today() + timedelta(days=14)
-
-        start_str = d_date.strftime("%Y%m%d")
-        end_str = (d_date + timedelta(days=1)).strftime("%Y%m%d")
-        uid = f"iris-user-{user_id}-opp-{opp.get('slug') or opp.get('id')}@{d_date.isoformat()}"
-
-        event = f"""BEGIN:VEVENT
-UID:{uid}
-DTSTAMP:{now_str}
-DTSTART;VALUE=DATE:{start_str}
-DTEND;VALUE=DATE:{end_str}
-SUMMARY:Deadline: {title} ({org})
-DESCRIPTION:{desc} - Official Portal: {url}
-LOCATION:{opp.get('location') or 'Online / PAN India'}
-URL:{url}
-STATUS:CONFIRMED
-BEGIN:VALARM
-TRIGGER:-PT72H
-ACTION:DISPLAY
-DESCRIPTION:Reminder: 3 days remaining to apply for {title}!
-END:VALARM
-BEGIN:VALARM
-TRIGGER:-PT24H
-ACTION:DISPLAY
-DESCRIPTION:Urgent: 24 hours left to submit application for {title}!
-END:VALARM
-END:VEVENT"""
-        events.append(event)
-
-    ics_content = f"""BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//IRIS onE//Student Deadline Intelligence Feed//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-X-WR-CALNAME:IRIS onE Student Deadlines
-X-WR-TIMEZONE:Asia/Kolkata
-{chr(10).join(events)}
-END:VCALENDAR
-""".replace("\r\n", "\n").replace("\n", "\r\n")
-
-    return Response(
-        content=ics_content,
-        media_type="text/calendar",
-        headers={
-            "Content-Disposition": f'attachment; filename="iris-user-{user_id}-deadlines.ics"',
-        },
-    )
+            data = calendar_event(dict(row))
+            events.append('BEGIN:VEVENT' + data.split('BEGIN:VEVENT', 1)[1].split('END:VEVENT', 1)[0] + 'END:VEVENT\r\n')
+        except HTTPException:
+            continue
+    content = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//IRIS onE//Saved deadlines//EN\r\n' + ''.join(events) + 'END:VCALENDAR\r\n'
+    return Response(content, media_type='text/calendar', headers={'Content-Disposition': 'attachment; filename="iris-saved-deadlines.ics"'})
 
 
 # ---------------------------------------------------------------------------
@@ -1329,87 +1168,31 @@ class TelegramAlertRequest(BaseModel):
     chat_id: Optional[str] = None
     message: Optional[str] = None
     opportunity_id: Optional[str] = None
+    preview: bool = True
 
 
-@app.post("/api/notifications/telegram-test")
-async def send_telegram_alert(
-    req: TelegramAlertRequest = Body(default_factory=TelegramAlertRequest),
-    current_user: Optional[Dict[str, Any]] = Depends(get_optional_current_user),
-    db: sqlite3.Connection = Depends(db_session),
-):
-    """
-    Dispatches a real or simulated Telegram deadline alert for students.
-    Reads TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID from environment or request body.
-    """
-    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = req.chat_id or (current_user.get("telegram_chat_id") if current_user else None) or os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-
-    opp_title = "Bharti Airtel Scholarship Program"
-    opp_url = "https://www.buddy4study.com/scholarship/bharti-airtel-scholarship"
-    days_left = 3
-    if req.opportunity_id:
-        opp = find_opportunity(db, req.opportunity_id)
-        if opp:
-            opp_title = opp.get("title", opp_title)
-            opp_url = opp.get("url") or opp.get("source_url") or opp_url
-            try:
-                dl_date = datetime.strptime(str(opp.get("deadline"))[:10], "%Y-%m-%d").date()
-                days_left = max(0, (dl_date - date.today()).days)
-            except Exception:
-                pass
-
-    alert_text = req.message or (
-        f"🚨 *IRIS onE Deadline Alert*\n\n"
-        f"Opportunity: *{opp_title}*\n"
-        f"⏳ Time Remaining: *{days_left} days left*\n"
-        f"🔗 Submit Application: {opp_url}\n\n"
-        f"_Sent via IRIS onE Student Opportunity Intelligence_"
-    )
-
-    if not bot_token or not chat_id:
-        return {
-            "success": True,
-            "mode": "simulated",
-            "message": "Simulated Telegram notification sent successfully.",
-            "preview": alert_text,
-            "note": "To enable real live Telegram delivery, configure TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in environment or set telegram_chat_id in your user profile.",
-            "target_chat_id": chat_id or "demo_student_channel",
-        }
-
+@app.post("/api/notifications/telegram-test", dependencies=[Depends(chat_rate_limiter.check)])
+async def send_telegram_alert(req: TelegramAlertRequest = Body(default_factory=TelegramAlertRequest), current_user=Depends(get_current_user), db=Depends(db_session)):
+    chat_id = current_user.get('telegram_chat_id')
+    if req.chat_id and req.chat_id != chat_id:
+        raise HTTPException(403, 'Use the recipient configured on your own profile.')
+    text = (req.message or 'IRIS onE reminder test. Check your tracked application deadlines.')[:2000]
+    key = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
+    if req.preview or mode() == 'demo' or not key or not chat_id:
+        return {'success': False, 'delivered': False, 'mode': 'preview', 'preview': text, 'message': 'Preview only; no notification was sent.'}
+    import httpx
     try:
-        import httpx
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            tg_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-            resp = await client.post(
-                tg_url,
-                json={
-                    "chat_id": chat_id,
-                    "text": alert_text,
-                    "parse_mode": "Markdown",
-                },
-            )
-            tg_data = resp.json()
-            if resp.status_code == 200 and tg_data.get("ok"):
-                return {
-                    "success": True,
-                    "mode": "live",
-                    "message": "Live Telegram notification delivered successfully.",
-                    "telegram_message_id": tg_data.get("result", {}).get("message_id"),
-                }
-            else:
-                return {
-                    "success": False,
-                    "mode": "error",
-                    "error": tg_data.get("description", "Telegram API returned an error"),
-                    "status_code": resp.status_code,
-                }
-    except Exception as e:
-        return {
-            "success": False,
-            "mode": "error",
-            "error": str(e),
-            "fallback_preview": alert_text,
-        }
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(f'https://api.telegram.org/bot{key}/sendMessage', json={'chat_id': chat_id, 'text': text})
+            response.raise_for_status()
+            data = response.json()
+            if not data.get('ok'):
+                raise ValueError('Notification rejected')
+        return {'success': True, 'delivered': True, 'mode': 'live'}
+    except Exception as exc:
+        from diagnostics import record
+        record('Telegram', 'LIVE_FAILED', error=exc)
+        raise HTTPException(502, 'The notification could not be delivered.') from None
 
 
 # ---------------------------------------------------------------------------

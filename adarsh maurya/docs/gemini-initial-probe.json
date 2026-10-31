@@ -1,0 +1,95 @@
+{
+  "checked_at": "2026-10-31T06:27:42.409676Z",
+  "requested_model": "gemini-2.5-flash",
+  "configured": true,
+  "requests": [
+    {
+      "operation": "models/gemini-2.5-flash",
+      "http_status": 200,
+      "name": "models/gemini-2.5-flash",
+      "methods": [
+        "generateContent",
+        "countTokens",
+        "createCachedContent",
+        "batchGenerateContent"
+      ]
+    },
+    {
+      "operation": "models",
+      "http_status": 200,
+      "name": null,
+      "methods": null,
+      "generate_content_models": [
+        "gemini-2.5-flash",
+        "gemini-2.5-pro",
+        "gemini-2.5-flash-preview-tts",
+        "gemini-2.5-pro-preview-tts",
+        "gemma-4-26b-a4b-it",
+        "gemma-4-31b-it",
+        "gemini-flash-latest",
+        "gemini-flash-lite-latest",
+        "gemini-pro-latest",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash-image",
+        "gemini-3-flash-preview",
+        "gemini-3.1-pro-preview",
+        "gemini-3.1-pro-preview-customtools",
+        "gemini-3.1-flash-lite-preview",
+        "gemini-3.1-flash-lite",
+        "gemini-3-pro-image-preview",
+        "gemini-3-pro-image",
+        "nano-banana-pro-preview",
+        "gemini-3.1-flash-image-preview",
+        "gemini-3.1-flash-image",
+        "gemini-3.1-flash-lite-image",
+        "gemini-nano-banana-2.1",
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-omni-flash-preview",
+        "gemini-omni-1.1-flash",
+        "gemini-3.5-transcribe",
+        "gemini-3.6-flash",
+        "gemini-3.7-flash",
+        "gemini-3.8-flash",
+        "gemini-4-argon",
+        "lyria-3-clip-preview",
+        "lyria-3-pro-preview",
+        "lyria-3.5",
+        "gemini-3.1-flash-tts-preview",
+        "gemini-3.8-flash-tts",
+        "gemini-3.8-flash-lite-tts",
+        "gemini-robotics-er-2-preview",
+        "gemini-2.5-computer-use-preview-10-2025",
+        "antigravity-preview-05-2026",
+        "antigravity-preview-09-2026",
+        "antigravity-preview-latest",
+        "deep-research-max-preview-04-2026",
+        "deep-research-preview-04-2026",
+        "deep-research-pro-preview-12-2025"
+      ]
+    }
+  ],
+  "generation_checks": [
+    {
+      "model": "gemini-2.5-flash",
+      "status": "LIVE_FAILED",
+      "http_status": 404,
+      "api_status": "NOT_FOUND",
+      "observation": "Real generation rejected for new users; metadata alone had returned 200."
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "status": "LIVE_FAILED",
+      "http_status": 503,
+      "api_status": "UNAVAILABLE",
+      "observation": "Temporary high demand on the real request."
+    },
+    {
+      "model": "gemini-3.8-flash",
+      "status": "LIVE_FAILED",
+      "error_type": "ReadTimeout",
+      "observation": "A subsequent controlled request with supported parameters did not complete within the read timeout."
+    }
+  ],
+  "generation_check_source": "Observed interactive real API calls on 31 October 2026; exact error text and credentials are not retained."
+}

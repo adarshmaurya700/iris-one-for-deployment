@@ -1,13 +1,9 @@
-"""
-IRIS onE — Streamlit Cloud Entrypoint Alias
-===========================================
-Default entrypoint alias for Streamlit Community Cloud (share.streamlit.io).
-Loads and executes `streamlit_app.py`.
-"""
-
+"""Convenient local launcher: python app.py. The application uses FastAPI."""
 from pathlib import Path
-import runpy
-
-if __name__ == "__main__" or True:
-    app_file = Path(__file__).resolve().parent / "streamlit_app.py"
-    runpy.run_path(str(app_file), run_name="__main__")
+import os
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent / 'backend'))
+from main import app  # noqa: E402, F401
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app, host='127.0.0.1', port=int(os.environ.get('PORT', '8000')))

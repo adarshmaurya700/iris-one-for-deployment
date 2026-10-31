@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0F1626" />
+    <meta name="theme-color" content="#0B1220" />
     <meta
       name="description"
       content="A calmer way to discover scholarships, internships and opportunities that fit you. Your profile, applications and next steps, together in IRIS onE."
@@ -15,11 +15,9 @@
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;550;600;650;700;750;800&display=swap"
       rel="stylesheet"
-      media="print"
-      onload="this.media='all'"
     />
-    <link rel="stylesheet" href="css/styles.css?v=3" />
-    <script src="js/app.js?v=3" defer></script>
+    <link rel="stylesheet" href="css/styles.css?v=5" />
+    <script src="js/app.js?v=5" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
@@ -65,10 +63,24 @@
             aria-label="Open navigation"
             aria-expanded="false"
           ></button
+          ><a class="home-brand" href="#home" aria-label="IRIS onE home"
+            ><img src="assets/iris-bird-logo@2x.png" alt="" /><span
+              >IRIS <span>onE</span></span
+            ></a
           ><span id="header-location" class="header-location"
             >Your overview</span
           >
         </div>
+        <nav
+          id="home-navigation"
+          class="home-navigation"
+          aria-label="Homepage navigation"
+        >
+          <a href="#home" aria-current="page">Home</a
+          ><a href="#opportunities">Opportunities</a
+          ><a href="#applications">Applications</a
+          ><a href="#ai-assistant">AI Assistant</a>
+        </nav>
         <div class="topbar-end">
           <button
             id="global-search-trigger"
@@ -182,7 +194,7 @@
         ></section>
       </main>
       <footer class="app-footer">
-        <span>Made for your next chapter.</span
+        <span>Better Opportunities. A Brighter You.</span
         ><span
           >IRIS onE <span class="footer-dot">·</span> Opportunity intelligence,
           with intention.</span

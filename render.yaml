@@ -1,0 +1,34 @@
+# Render Blueprint: persistent SQLite requires a paid disk-capable service.
+services:
+  - type: web
+    name: iris-one
+    runtime: python
+    rootDir: adarsh maurya
+    plan: starter
+    branch: main
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: python -m uvicorn main:app --app-dir backend --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /api/health
+    disk:
+      name: iris-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.13
+      - key: IRIS_ENV
+        value: production
+      - key: IRIS_MODE
+        value: live
+      - key: DATABASE_PATH
+        value: /data/iris_one.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: IRIS_ADMIN_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: ""
+      - key: TINYFISH_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

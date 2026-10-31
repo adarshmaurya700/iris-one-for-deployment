@@ -114,7 +114,7 @@ def get_db() -> sqlite3.Connection:
     """
     global _postgres_available
     database_url = os.environ.get("DATABASE_URL", "")
-    if database_url.startswith(("postgres://", "postgresql://")) and _postgres_available is not False:
+    if database_url.startswith(("postgres://", "postgresql://")) and (_postgres_available is not False or __import__('runtime_config').production()):
         try:
             import psycopg
             from psycopg.rows import dict_row
@@ -122,7 +122,8 @@ def get_db() -> sqlite3.Connection:
             _postgres_available = True
             return conn
         except Exception:
-            if _postgres_available:
+            from runtime_config import production
+            if _postgres_available or production():
                 raise  # Never split an established database across two stores.
             logging.getLogger(__name__).warning("PostgreSQL unavailable at startup; using local SQLite.")
             _postgres_available = False
@@ -261,7 +262,7 @@ def init_db() -> None:
     for col, ddl in [
         ("academic_tier", "TEXT DEFAULT ''"),
         ("cgpa_or_percentage", "TEXT DEFAULT ''"),
-        ("family_income_lpa", "REAL DEFAULT 8.0"),
+        ("family_income_lpa", "REAL"),
         ("extracted_skills", "TEXT DEFAULT ''"),
         ("recommended_domains", "TEXT DEFAULT ''"),
         ("profile_json", "TEXT DEFAULT ''"),
@@ -289,7 +290,7 @@ def init_db() -> None:
     cursor.execute("""CREATE TABLE IF NOT EXISTS student_profiles (
         id TEXT PRIMARY KEY, name TEXT DEFAULT '', email TEXT DEFAULT '',
         academic_stage TEXT DEFAULT '', institution TEXT DEFAULT '',
-        academic_tier TEXT DEFAULT 'TIER_2_UG_PG', state_domicile TEXT DEFAULT '',
+        academic_tier TEXT DEFAULT '', state_domicile TEXT DEFAULT '',
         age INTEGER, class_12_pct REAL, family_income_inr INTEGER, nirf_top_50 INTEGER,
         skills_json TEXT DEFAULT '[]', resume_text TEXT DEFAULT '',
         profile_completeness INTEGER DEFAULT 0, embedding_json TEXT DEFAULT '[]'

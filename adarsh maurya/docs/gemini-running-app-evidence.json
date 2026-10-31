@@ -1,0 +1,9 @@
+{
+  "operation": "running_local_fastapi_assistant",
+  "http_status": 200,
+  "operating_mode": "live",
+  "status": "LIVE_SUCCESS",
+  "model_used": "gemini-3.1-flash-lite",
+  "answer_present": true,
+  "source_cards": 5
+}

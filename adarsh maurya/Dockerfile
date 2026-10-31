@@ -5,6 +5,8 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=8000 \
+    IRIS_ENV=production \
+    IRIS_MODE=live \
     DATABASE_PATH=/data/iris_one.db \
     PYTHONPATH=/app/backend
 
@@ -16,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create persistent storage mount point
-RUN mkdir -p /data
+RUN useradd --create-home --uid 10001 iris && mkdir -p /data && chown iris:iris /data
 
 # Install Python requirements
 COPY backend/requirements.txt /app/backend/requirements.txt
@@ -24,8 +26,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/backend/requirements.txt
 
 # Copy source code and frontend assets
-COPY backend/ /app/backend/
-COPY frontend/ /app/frontend/
+COPY --chown=iris:iris backend/ /app/backend/
+COPY --chown=iris:iris frontend/ /app/frontend/
+USER iris
 
 # Expose HTTP port (Render, Railway, Fly.io, Cloud Run inject $PORT)
 EXPOSE 8000

@@ -17,6 +17,8 @@
         })[char],
     );
   const paths = {
+    medal:
+      '<path d="m7 3 5 7 5-7M5 3h4l3 5 3-5h4l-5 9H10Z"/><circle cx="12" cy="16" r="5"/><path d="m12 13 1 2 2 .3-1.5 1.5.4 2.2-1.9-1-1.9 1 .4-2.2L9 15.3l2-.3Z"/>',
     home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/>',
     compass:
       '<circle cx="12" cy="12" r="9"/><path d="m16 8-2.5 5.5L8 16l2.5-5.5Z"/>',
@@ -187,7 +189,7 @@
           response.status,
         );
       }
-      return await response.json();
+      return options.raw ? response : await response.json();
     } catch (error) {
       if (error instanceof ApiError) throw error;
       if (error.name === "AbortError")
@@ -219,6 +221,7 @@
     "Competitions",
     "Hackathons",
     "Student Offers",
+    "Olympiads",
     "International",
   ];
   const categoryIcons = {
@@ -228,6 +231,7 @@
     Competitions: "trophy",
     Hackathons: "code",
     "Student Offers": "gift",
+    Olympiads: "medal",
     International: "globe",
   };
   const categoryDescriptions = {
@@ -236,11 +240,13 @@
     Hackathons: "Build, collaborate, and make an impact.",
     Competitions: "Put your ideas and skills to the test.",
     "Student Offers": "Tools, credits, and a little extra support.",
+    Olympiads: "Challenge yourself and celebrate what you know.",
     International: "Discover a world beyond your campus.",
   };
   function categoryOf(opp) {
     const value =
       `${opp.category || ""} ${opp.type || ""} ${opp.title || ""}`.toLowerCase();
+    if (value.includes("olympiad")) return "Olympiads";
     if (value.includes("hackathon")) return "Hackathons";
     if (value.includes("scholar") || value.includes("grant"))
       return "Scholarships";
@@ -276,7 +282,11 @@
   function verification(status) {
     return (
       {
-        VERIFIED_LIVE: ["Live check passed", "green"],
+        VERIFIED_LIVE: ["Verified recently", "green"],
+        PREVIOUSLY_VERIFIED: ["Previously verified", "gold"],
+        VERIFICATION_PENDING: ["Verification pending", "neutral"],
+        COULD_NOT_VERIFY: ["Could not verify", "gold"],
+        ARCHIVED: ["Archived", "neutral"],
         SEEDED_CACHE: ["From the catalog", "neutral"],
         CACHE_ONLY: ["Cached information", "gold"],
         EXPIRED: ["Past deadline", "red"],
@@ -338,6 +348,7 @@
     setTimeout(() => el.remove(), type === "error" ? 8500 : 4500);
   }
   function updateShell() {
+    document.body.classList.toggle("is-home", S.view === "home");
     const navigation = [
       ["home", "home", "Home"],
       ["opportunities", "compass", "Opportunities"],
@@ -357,7 +368,11 @@
     $("sidebar-user-name").textContent = profileName();
     $("sidebar-user-detail").textContent =
       S.profile?.institution ||
-      (S.user ? "Student workspace" : "Demo workspace");
+      (S.user
+        ? "Student workspace"
+        : S.config?.is_simulated
+          ? "Demo workspace"
+          : "Private guest workspace");
     $("header-user-name").textContent = firstName;
     $("header-avatar").textContent = initials(profileName());
     $("sidebar-avatar").textContent = initials(profileName());
@@ -381,7 +396,7 @@
     document.body.classList.toggle("reduce-motion", !!prefs.reduce_motion);
     document.body.classList.toggle("compact-cards", !!prefs.compact_cards);
     $("account-popover").innerHTML =
-      `<a href="#profile">${icon("user")}Your profile</a><a href="#onboarding/1">${icon("cap")}Edit your details</a><a href="#settings">${icon("settings")}Preferences</a>${S.token ? `<button data-action="logout">${icon("logout")}Sign out</button>` : `<a href="#login">${icon("lock")}Sign in / create account</a>`}`;
+      `<a href="#profile">${icon("user")}Your profile</a><a href="#saved">${icon("bookmark")}Saved opportunities</a><a href="#onboarding/1">${icon("cap")}Edit your details</a><a href="#settings">${icon("settings")}Preferences</a>${S.token ? `<button data-action="logout">${icon("logout")}Sign out</button>` : `<a href="#login">${icon("lock")}Sign in / create account</a>`}`;
   }
   function card(opp) {
     const id = idOf(opp),
@@ -413,41 +428,41 @@
   function metric(value, label, symbol, view) {
     return `<a href="#${view}" class="surface metric-card"><span class="metric-icon">${icon(symbol)}</span><span><span class="metric-value">${esc(value)}</span><span class="metric-caption" style="display:block">${esc(label)}</span></span></a>`;
   }
+  function homeFeatureCard(opp) {
+    const id = idOf(opp),
+      due = deadline(opp);
+    return `<article class="featured-opportunity" data-action="open-detail" data-id="${esc(id)}" tabindex="0" role="link" aria-label="View ${esc(opp.title)}">
+      <div class="featured-head">${mark(opp)}<div class="featured-copy"><h3>${esc(opp.title)}</h3><p>${esc(opp.organization || opp.provider || "Official program")}</p></div><span class="featured-match" title="Profile compatibility, not selection probability">${icon("sparkle")}${scoreOf(opp)}% Match</span></div>
+      <div class="featured-meta"><span>${icon("calendar")}${due.iso ? esc(dateFormat(due.iso)) : "Deadline not confirmed"}</span><span>${icon("location")}${esc(opp.mode || opp.location || opp.location_state || "See official portal")}</span><span class="featured-provenance">${esc(verification(opp.verification_status)[0])}</span></div>
+    </article>`;
+  }
   function renderHome() {
-    const hour = Number(
-      new Intl.DateTimeFormat("en-GB", {
-        hour: "numeric",
-        hourCycle: "h23",
-        timeZone: "Asia/Kolkata",
-      }).format(new Date()),
-    );
-    const greeting =
-      hour < 12
-        ? "Good morning"
-        : hour < 17
-          ? "Good afternoon"
-          : "Good evening";
     const domains = S.profile?.domains || [];
-    const interested = domains.length
-      ? S.opportunities.filter(
-          (opp) =>
-            domains.includes(categoryOf(opp)) ||
-            (domains.includes("International") && isInternational(opp)),
-        )
-      : S.opportunities;
+    const interested = S.opportunities.filter(
+      (opp) =>
+        !domains.length ||
+        domains.includes(categoryOf(opp)) ||
+        (domains.includes("International") && isInternational(opp)),
+    );
     const top = [...(interested.length ? interested : S.opportunities)]
       .sort((a, b) => scoreOf(b) - scoreOf(a))
-      .slice(0, 3);
-    const dates = upcoming().slice(0, 3),
-      completeness = S.profile?.profile_completeness || 0;
+      .slice(0, 2);
+    const shortcuts = [
+      ["Hackathons", "code"],
+      ["Scholarships", "cap"],
+      ["Internships", "briefcase"],
+      ["Competitions", "trophy"],
+      ["Student Offers", "gift"],
+      ["Olympiads", "medal"],
+      ["AI Assistant", "sparkle"],
+    ];
     $("view-home").innerHTML =
-      `${heading("home", "YOUR NEXT CHAPTER", `${greeting}, ${profileName().split(" ")[0]}.`, "A little more possibility, a little less searching. Here’s what’s waiting for you.")}
-      <div class="welcome-hero"><div class="hero-content"><span class="hero-label">GREAT THINGS START WITH A SMALL STEP</span><h2>Your potential.<br />A world of possibility.</h2><p>Scholarships, experiences, and opportunities that meet you where you are — and take you a little further.</p><a class="button primary" href="#opportunities">Find your next opportunity ${icon("arrow")}</a></div><span class="hero-caption">MAKE ROOM FOR WHAT’S NEXT.</span></div>
-      <div class="metrics-grid">${metric(S.opportunities.length, "Opportunities to explore", "compass", "opportunities")}${metric(S.saved.length, "Saved for a little later", "bookmark", "saved")}${metric(S.applications.length, "Applications in progress", "briefcase", "applications")}${metric(`${completeness}%`, "Your profile strength", "chart", "profile")}</div>
-      <div class="section-heading"><div><h2>Picked with your potential in mind</h2><p>Your strongest matches from the current catalog.</p></div><a href="#opportunities">Explore all ${icon("arrow", "icon-sm")}</a></div>
-      <div class="opportunity-grid home-recommendations">${top.map(card).join("") || empty("Your next opportunity is on its way", "Refresh the catalog or try a broader search.", "reload", "Refresh catalog")}</div>
-      <div class="home-bottom"><div class="surface"><div class="home-progress-top"><h3>A little progress goes a long way</h3>${pill(`${completeness}%`, "blue")}</div><p>A fuller profile helps IRIS find a better fit for you.</p><div class="progress" role="progressbar" aria-label="Profile completeness" aria-valuenow="${completeness}" aria-valuemin="0" aria-valuemax="100"><span style="width:${completeness}%"></span></div><div class="button-row"><a href="#profile" class="button secondary small">Your profile ${icon("arrow")}</a><a href="#onboarding/1" class="text-link">Add a little more</a></div></div>
-      <div class="surface"><h3>On your radar</h3><p>A gentle reminder for the things you’re working toward.</p>${dates.length ? dates.map((opp) => `<a class="mini-deadline" href="#detail/${encodeURIComponent(idOf(opp))}"><span class="mini-date">${dateFormat(deadline(opp).iso, { day: "numeric" })}<small>${dateFormat(deadline(opp).iso, { month: "short" })}</small></span><span><strong>${esc(opp.title)}</strong><small>${esc(opp.organization || opp.provider)}</small></span>${pill(deadline(opp).label, deadline(opp).days < 8 ? "gold" : "neutral")}</a>`).join("") : `<p>No tracked deadlines yet. When you find something you love, track it here.</p><a href="#applications" class="text-link">Your application space ${icon("arrow", "icon-sm")}</a>`}</div></div>`;
+      `<section class="home-hero" aria-labelledby="home-heading">
+      <div class="home-hero-art" aria-hidden="true"><svg viewBox="668 76 365 257" preserveAspectRatio="xMidYMid slice" focusable="false"><image href="assets/homepage-reference.png" x="0" y="0" width="1046" height="690" /></svg></div>
+      <div class="home-hero-copy"><span class="home-eyebrow">YOUR OPPORTUNITY COMPANION</span><h1 id="home-heading"><span>Discover. Apply.</span> <em>Grow.</em></h1><p>A personalized platform to discover scholarships, internships, hackathons and opportunities that fit you.</p>
+      <form id="home-search-form" class="home-search" role="search"><label class="sr-only" for="home-search-input">Search opportunities, skills or organizations</label>${icon("search")}<input id="home-search-input" type="search" placeholder="Search opportunities, skills or organizations..." autocomplete="off" maxlength="200" /><button type="submit" aria-label="Search opportunities">${icon("search")}</button></form></div></section>
+      <nav class="home-categories" aria-label="Opportunity categories">${shortcuts.map(([category, symbol], index) => `<button type="button" data-action="home-category" data-home-category="${category}" class="home-category category-tone-${index % 3}">${icon(symbol)}<span>${category}</span></button>`).join("")}</nav>
+      <section class="home-featured" aria-labelledby="home-featured-heading"><div class="home-section-heading"><h2 id="home-featured-heading">Top opportunities for you</h2><a href="#opportunities">View all ${icon("arrow")}</a></div><div class="home-featured-grid">${top.map(homeFeatureCard).join("") || empty("Your next opportunity starts here", "Add your interests or explore the catalog to discover a possibility that fits you.", "explore", "Explore opportunities")}</div></section>`;
   }
   function filteredOpportunities() {
     const f = S.filter;
@@ -552,43 +567,12 @@
   }
 
   function gateRows(opp, guide) {
-    const p = S.profile || {},
-      rows = [];
-    rows.push([
-      guide.match_breakdown?.academic === 35,
-      guide.match_breakdown?.academic === 35
-        ? "Your academic level matches the cached criteria."
-        : "Confirm the academic level required by this program.",
+    return (guide.eligibility_checklist || []).map((item) => [
+      item.pass,
+      item.detail,
     ]);
-    if (opp.min_marks_pct)
-      rows.push([
-        p.class_12_pct != null && p.class_12_pct >= opp.min_marks_pct,
-        `At least ${opp.min_marks_pct}% in Class 12${p.class_12_pct != null ? ` · yours: ${p.class_12_pct}%` : " · add your marks to confirm"}`,
-      ]);
-    if (
-      opp.max_family_income_inr != null &&
-      opp.max_family_income_inr < 99999999
-    )
-      rows.push([
-        p.family_income_inr != null &&
-          p.family_income_inr <= opp.max_family_income_inr,
-        `Family income up to ₹${Number(opp.max_family_income_inr).toLocaleString("en-IN")}${p.family_income_inr == null ? " · not provided yet" : ""}`,
-      ]);
-    if (opp.nirf_top_50_required)
-      rows.push([
-        p.nirf_top_50 === 1,
-        "Admission at a top-50 NIRF engineering institution.",
-      ]);
-    if (
-      opp.location_state &&
-      !/^(all india|online|national|pan india)$/i.test(opp.location_state)
-    )
-      rows.push([
-        guide.match_breakdown?.domicile === 25,
-        `${opp.location_state} domicile / location requirement.`,
-      ]);
-    return rows;
   }
+
   function policyMarkup(guide) {
     return `<div class="policy-banner ${guide.conflict_warning ? "conflict" : ""}"><strong>${icon("shield")}Policy Conflict Shield</strong>${esc(guide.conflict_warning || (guide.is_exclusive_tuition_grant ? "Exclusive tuition support. Check non-duplication rules before accepting another tuition award." : /offer|perk/i.test(guide.category || "") ? "Stackable non-tuition benefit in the cached policy. Confirm current offer terms and availability." : "No exclusive tuition restriction is recorded in the cache. Review the official terms before combining awards."))}</div>`;
   }
@@ -615,17 +599,17 @@
     $("view-detail").innerHTML =
       `<a href="#opportunities" class="detail-back">${icon("left")}Back to opportunities</a>
       <div class="detail-hero"><div>${pill(category === "Scholarships" ? "Scholarship" : category, category === "Scholarships" ? "green" : "blue", categoryIcons[category])}<h1 id="detail-heading">${esc(opp.title)}</h1><div class="detail-provider">${icon("cap", "icon-sm")}${esc(opp.organization || opp.provider)} <span>·</span> ${esc(opp.location || opp.location_state || "Online")}</div><p style="margin-top:15px">${esc(opp.description || guide.benefit_summary)}</p><div class="button-row"><button class="button primary" data-action="apply" data-id="${esc(idOf(opp))}">Apply Now ${icon("arrow")}</button><button class="button secondary" data-action="save" data-id="${esc(idOf(opp))}" aria-pressed="${S.saved.some((item) => idOf(item) === idOf(opp))}">${icon("bookmark")}${S.saved.some((item) => idOf(item) === idOf(opp)) ? "Saved to your shortlist" : "Save for later"}</button></div></div><div class="detail-art">${mark(opp, true)}</div></div>
-      <div class="intelligence-grid"><section class="surface intelligence-card"><h3>${icon("chart")}A fit for your potential</h3><div class="match-ring-row"><div class="match-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="43"/><circle class="ring-value" cx="50" cy="50" r="43" stroke-dasharray="270.177" stroke-dashoffset="${270.177 * (1 - Math.min(100, score) / 100)}"/></svg><span>${Math.round(score)}%<small>PROFILE MATCH</small></span></div><div class="match-summary"><strong>${score >= 85 ? "A promising match" : score >= 65 ? "Room to explore" : "Take a closer look"}</strong><p>Based on your<br />current profile.</p></div></div>${factors.map(([key, label, max]) => `<div class="factor"><span>${label}</span><b>${guide.match_breakdown?.[key] ?? 0} / ${max}</b></div>`).join("")}</section>
-      <section class="surface intelligence-card"><h3>${icon("checkCircle")}Eligibility, made clearer</h3>${gateRows(
+      <div class="intelligence-grid"><section class="surface intelligence-card"><h3>${icon("chart")}A fit for your potential</h3><div class="match-ring-row"><div class="match-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="43"/><circle class="ring-value" cx="50" cy="50" r="43" stroke-dasharray="270.177" stroke-dashoffset="${270.177 * (1 - Math.min(100, score) / 100)}"/></svg><span>${Math.round(score)}%<small>PROFILE MATCH</small></span></div><div class="match-summary"><strong>${score >= 85 ? "A promising match" : score >= 65 ? "Room to explore" : "Take a closer look"}</strong><p>Profile compatibility.<br />Not selection odds.</p></div></div>${factors.map(([key, label, max]) => `<div class="factor"><span>${label}</span><b>${guide.match_breakdown?.[key] ?? 0} / ${max}</b></div>`).join("")}</section>
+      <section class="surface intelligence-card"><h3>${icon("checkCircle")}Eligibility, made clearer</h3>${pill({ confirmed_eligible: "Confirmed eligible", likely_eligible: "Likely eligible", requires_information: "Requires additional information", not_eligible: "Not eligible" }[guide.eligibility_status] || "Requires additional information", guide.eligible ? "green" : "gold")}${gateRows(
         opp,
         guide,
       )
         .map(
           ([pass, label]) =>
-            `<div class="eligibility-row ${pass ? "" : "unknown"}">${icon(pass ? "checkCircle" : "info")}<span>${esc(label)}</span></div>`,
+            `<div class="eligibility-row ${pass === true ? "" : pass === false ? "failed" : "unknown"}">${icon(pass === true ? "checkCircle" : "info")}<span>${esc(label)}</span></div>`,
         )
         .join("")}${policyMarkup(guide)}</section>
-      <section class="surface intelligence-card"><h3>${icon("shield")}A little peace of mind</h3>${pill(status[0], status[1], guide.verification_status === "VERIFIED_LIVE" ? "shield" : "clock")}<p class="verification-copy">${guide.last_verified_at ? "The application portal and structured program details passed a live check." : "Program information is available in the catalog. A live application check has not been confirmed."}</p><p class="verification-date">${guide.last_verified_at ? `Last live check ${dateFormat(guide.last_verified_at, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}` : guide.last_checked_at ? `Cache checked ${dateFormat(guide.last_checked_at, { day: "numeric", month: "short" })}` : "Background catalog refresh · every 12 hours"}</p><button id="detail-verify-button" class="button secondary small" data-action="verify" data-id="${esc(idOf(opp))}">Verify now ${icon("external")}</button>${traceRows.length ? `<details class="verification-trace"><summary>View verification activity</summary>${traceRows.map((step) => `<div class="trace-row"><b>${esc(step.stage || "Catalog check")} · ${esc(step.status || "recorded")}</b><p>${esc(step.detail || "")}</p></div>`).join("")}</details>` : ""}</section></div>
+      <section class="surface intelligence-card"><h3>${icon("shield")}A little peace of mind</h3>${pill(status[0], status[1], guide.verification_status === "VERIFIED_LIVE" ? "shield" : "clock")}<p class="verification-copy">${guide.last_verified_at ? "A previous portal check is recorded. Use the badge and timestamp to judge its freshness." : "Program information is available in the catalog. A live application check has not been confirmed."}</p><p class="verification-date">${guide.last_verified_at ? `Last live check ${dateFormat(guide.last_verified_at, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}` : guide.last_checked_at ? `Cache checked ${dateFormat(guide.last_checked_at, { day: "numeric", month: "short" })}` : "Background catalog refresh · every 12 hours"}</p><button id="detail-verify-button" class="button secondary small" data-action="verify" data-id="${esc(idOf(opp))}">Verify now ${icon("external")}</button></section></div>
       <div class="detail-bottom"><section class="surface overview-card"><h2>A closer look</h2><p>${esc(opp.description || guide.benefit_summary)}</p><h3>What this could mean for you</h3><p>${esc(guide.benefit_summary || "See the current program benefits and conditions on the official portal.")}</p><h3>Your first few steps</h3>${(
         guide.how_to_apply_steps || []
       )
@@ -682,7 +666,7 @@
       <section class="profile-section"><div class="profile-section-heading">${icon("cap")}<h3>Academic details</h3></div><div class="profile-data-grid">${field("Class / Degree", (p.academic_stage || "").split("•")[0].trim())}${field("University / Institution", p.institution)}${field("Graduation year", p.graduation_year)}${field("Age", p.age)}</div></section>
       <section class="profile-section"><div class="profile-section-heading">${icon("location")}<h3>A sense of place</h3></div><div class="profile-data-grid">${field("City / State", p.state_domicile)}${field("Country", p.country)}</div></section>
       <section class="profile-section"><div class="profile-section-heading">${icon("chart")}<h3>Skills & interests</h3></div><div class="skill-tags">${skills.length ? skills.map((skill) => `<span class="skill-tag">${esc(skill)}</span>`).join("") : '<span class="muted text-small">A blank canvas. Add what you’re good at.</span>'}</div>${domains.length ? `<div class="skill-tags" style="margin-top:13px">${domains.map((domain) => pill(domain, "gold")).join("")}</div>` : ""}</section>
-      <section class="profile-section"><div class="profile-section-heading">${icon("document")}<h3>Your resume</h3></div><div class="resume-bar" data-dropzone>${icon("document", "resume-icon")}<div><strong>${esc(p.resume_filename || "A little more of your story")}</strong><small>${p.resume_filename ? `Added ${dateFormat(p.resume_uploaded_at)}` : "Drop a PDF, DOCX, or TXT file here · up to 5 MB"}</small></div><button class="button secondary small" data-action="upload-resume">${icon("upload")}${p.resume_filename ? "Replace resume" : "Upload resume"}</button></div><div class="profile-details-actions"><button class="text-link" style="border:0;background:none" data-action="sample-resume">Try the sample profile ${icon("arrow", "icon-sm")}</button></div></section></div><p class="profile-tip">Your story can change. <a href="#onboarding/1">Update your profile</a> whenever you need to.</p></div>`;
+      <section class="profile-section"><div class="profile-section-heading">${icon("document")}<h3>Your resume</h3></div><div class="resume-bar" data-dropzone>${icon("document", "resume-icon")}<div><strong>${esc(p.resume_filename || "A little more of your story")}</strong><small>${p.resume_filename ? `Added ${dateFormat(p.resume_uploaded_at)}` : "Drop a PDF, DOCX, or TXT file here · up to 5 MB"}</small></div><button class="button secondary small" data-action="upload-resume">${icon("upload")}${p.resume_filename ? "Replace resume" : "Upload resume"}</button></div>${S.config?.is_simulated ? `<div class="profile-details-actions"><button class="text-link" style="border:0;background:none" data-action="sample-resume">Try the simulated sample profile ${icon("arrow", "icon-sm")}</button></div>` : ""}</section></div><p class="profile-tip">Your story can change. <a href="#onboarding/1">Update your profile</a> whenever you need to.</p></div>`;
   }
   function applicationStatus(opp) {
     const value = String(opp.application_status || "Draft");
@@ -952,7 +936,7 @@
       countdown = `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
     $("view-settings").innerHTML =
       `${heading("settings", "MAKE YOURSELF AT HOME", "A workspace that feels like you.", "A few thoughtful preferences, and a clear view of what keeps your catalog fresh.")}
-      <div class="settings-layout"><div><section class="surface settings-card"><h2>Fresh possibilities, twice a day.</h2><p>IRIS checks the shared catalog every 12 hours so your browsing stays quick and your next steps stay clear.</p><div class="sync-hero">${icon("refresh")}<div><strong id="catalog-sync-status">${sync.sync_running ? "A little refresh is in progress…" : sync.last_sync_iso ? "Your catalog is up to date" : "Your first refresh is ready"}</strong><p>${sync.sync_running ? "You can keep exploring while it runs." : sync.last_sync_iso ? `Next scheduled check in ${countdown}` : "Run a catalog check whenever you’re ready."}</p></div></div><div class="settings-rows"><div><span>Last completed refresh</span><b>${sync.last_sync_iso ? dateFormat(sync.last_sync_iso, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "Not run yet"}</b></div><div><span>Last confirmed live check</span><b>${sync.last_verified_at ? dateFormat(sync.last_verified_at, { day: "numeric", month: "short" }) : "Not recorded"}</b></div><div><span>Catalog records</span><b>${config.catalog_count ?? S.opportunities.length} opportunities</b></div><div><span>Refresh interval</span><b>Every 12 hours</b></div></div><div class="button-row" style="margin-top:22px"><button id="sync-now-button" class="button primary" data-action="sync" ${sync.sync_running ? "disabled" : ""}>${icon("refresh")}${sync.sync_running ? "Refreshing…" : "Refresh the catalog"}</button><span class="text-small muted" style="font-size:11px">${config.live_verification_configured ? "Live portal checks are configured" : "Cache checks available · live providers not configured"}</span></div></section>
+      <div class="settings-layout"><div><section class="surface settings-card"><h2>Fresh possibilities, twice a day.</h2><p>IRIS checks the shared catalog every 12 hours so your browsing stays quick and your next steps stay clear.</p><div class="sync-hero">${icon("refresh")}<div><strong id="catalog-sync-status">${sync.sync_running ? "A little refresh is in progress…" : sync.last_sync_iso ? "Your last catalog check completed" : "Your first refresh is ready"}</strong><p>${sync.sync_running ? "You can keep exploring while it runs." : sync.last_sync_iso ? `Next scheduled check in ${countdown}` : "Run a catalog check whenever you’re ready."}</p></div></div><div class="settings-rows"><div><span>Last completed refresh</span><b>${sync.last_sync_iso ? dateFormat(sync.last_sync_iso, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "Not run yet"}</b></div><div><span>Last confirmed live check</span><b>${sync.last_verified_at ? dateFormat(sync.last_verified_at, { day: "numeric", month: "short" }) : "Not recorded"}</b></div><div><span>Catalog records</span><b>${config.catalog_count ?? S.opportunities.length} opportunities</b></div><div><span>Refresh interval</span><b>Every 12 hours</b></div></div><div class="button-row" style="margin-top:22px"><button id="sync-now-button" class="button primary" data-action="sync" ${sync.sync_running ? "disabled" : ""}>${icon("refresh")}${sync.sync_running ? "Refreshing…" : "Refresh the catalog"}</button><span class="text-small muted" style="font-size:11px">${config.live_verification_configured ? "Live portal checks are configured" : "Cache checks available · live verification unavailable"}</span></div></section>
       <section class="surface settings-card"><h2>Found a possibility somewhere else?</h2><p>Bring an official program link or a specific opportunity name to the verification pipeline.</p><form id="scan-form" class="scan-form"><label class="sr-only" for="scanner-query-input">Official portal URL or program name</label><input id="scanner-query-input" class="input" placeholder="Official portal link or program name" required maxlength="400" /><button id="scanner-verify-btn" class="button secondary" type="submit">Scan & verify ${icon("arrow")}</button></form><div id="scan-result" class="scan-result" role="status"></div></section></div>
       <div><section class="surface settings-card"><h2>Your little preferences</h2><p>Make this space a little more comfortable. Your choices stay with your profile.</p>${[
         [
@@ -976,7 +960,7 @@
             `<label class="setting-toggle-row"><span><strong>${label}</strong><p>${description}</p></span><input type="checkbox" class="toggle" data-preference="${key}" ${key === "show_verification" ? (prefs[key] !== false ? "checked" : "") : prefs[key] ? "checked" : ""} aria-label="${label}" /></label>`,
         )
         .join("")}</section>
-      <section class="surface settings-card"><h2>Behind your workspace</h2><p>A clear view of how your opportunities and answers are served.</p><div class="settings-rows"><div><span>Data store</span><b>${esc(config.database || "Local catalog")}</b></div><div><span>Assistant</span><b>${esc((config.assistant_providers || ["Local retrieval"]).join(", "))}</b></div><div><span>Live verification</span><b>${config.live_verification_configured ? "Configured" : "Not configured"}</b></div><div><span>Your workspace</span><b>${S.user ? "Personal account" : "Private guest workspace"}</b></div></div><div class="privacy-note" style="margin-top:18px">${icon("lock")} ${S.user ? "Your profile, saved opportunities and applications are scoped to your signed-in account." : "This guest workspace is private to this browser. Sign in to keep your progress linked to an account."}</div>${S.user ? `<button class="button ghost small" style="margin-top:19px" data-action="logout">${icon("logout")}Sign out</button>` : '<a class="button secondary small" style="margin-top:19px" href="#login">Create your own space</a>'}</section></div></div>`;
+      <section class="surface settings-card"><h2>Behind your workspace</h2><p>A clear view of how your opportunities and answers are served.</p><div class="settings-rows"><div><span>Data store</span><b>${esc(config.database || "Local catalog")}</b></div><div><span>Assistant</span><b>${esc((config.assistant_providers || ["Local retrieval"]).join(", "))}</b></div><div><span>Live verification</span><b>${config.live_verification_configured ? "Configured" : "Not configured"}</b></div><div><span>Your workspace</span><b>${S.user ? "Personal account" : "Private guest workspace"}</b></div></div><div class="privacy-note" style="margin-top:18px">${icon("lock")} ${S.user ? "Your profile, saved opportunities and applications are scoped to your signed-in account." : "This guest workspace is private to this browser. Sign in to keep your progress linked to an account."}</div>${S.user ? `<button class="button ghost small" style="margin-top:19px" data-action="logout">${icon("logout")}Sign out</button>` : '<a class="button secondary small" style="margin-top:19px" href="#login">Create your own space</a>'}</section><section class="surface settings-card"><h2>Your data, in your hands</h2><p>Download your profile, shortlist and application tracker. Removing a resume clears its stored text and file details; your edited profile stays available.</p><div class="button-row"><button class="button secondary small" data-action="export-data">${icon("download")}Export my workspace</button><button class="button ghost small" data-action="remove-resume" ${S.profile?.resume_filename ? "" : "disabled"}>Remove stored resume</button></div></section></div></div>`;
   }
   function startWizard(reset = false) {
     if (S.wizard && !reset) return;
@@ -989,6 +973,9 @@
       academic_stage: (p.academic_stage || "").split("•")[0].trim(),
       institution: p.institution || "",
       graduation_year: p.graduation_year || "",
+      class_12_pct: p.class_12_pct ?? "",
+      family_income_inr: p.family_income_inr ?? "",
+      nirf_top_50: p.nirf_top_50 == null ? "" : String(Boolean(p.nirf_top_50)),
       skills: [...(p.skills || [])],
       domains: new Set(p.domains || []),
       areas_of_interest: p.areas_of_interest || "",
@@ -1059,6 +1046,7 @@
         `<div class="onboarding-container">${meta}${heading("onboarding", "A LITTLE ABOUT YOU", "Tell us about yourself.", "Let’s make this space feel more like you — and your opportunities a little more relevant.")}
         <div class="wizard-grid"><form id="onboarding-form" class="surface wizard-card"><h2>${icon("user")}Personal information</h2><p class="section-copy">The basics, so we can put you first.</p><div class="form-grid"><div class="form-field full"><label for="setup-name">Full name</label><input id="setup-name" class="input" name="name" value="${esc(w.name)}" required maxlength="120" autocomplete="name" /></div><div class="form-field"><label for="setup-age">Age</label><input id="setup-age" class="input" name="age" type="number" min="10" max="100" value="${esc(w.age)}" required /></div><div class="form-field"><label for="setup-country">Country</label><select id="setup-country" class="input" name="country">${countryOptions.map((country) => `<option ${country === w.country ? "selected" : ""}>${esc(country)}</option>`).join("")}</select></div><div class="form-field full"><label for="setup-state">City / State</label><input id="setup-state" class="input" name="state_domicile" list="state-options" value="${esc(w.state_domicile)}" required maxlength="100" autocomplete="address-level1" /><datalist id="state-options">${["Delhi", "Uttar Pradesh", "Maharashtra", "Karnataka", "Tamil Nadu", "Gujarat", "Rajasthan", "West Bengal", "Bihar", "Telangana", "Kerala", "Punjab", "Haryana"].map((state) => `<option value="${state}"></option>`).join("")}</datalist></div></div>
         <div class="divider"></div><h2>${icon("cap")}Education details</h2><p class="section-copy">Where you are in your academic journey.</p><div class="form-grid"><div class="form-field"><label for="setup-degree">Degree / Class</label><input id="setup-degree" class="input" name="academic_stage" list="degree-options" value="${esc(w.academic_stage)}" required maxlength="120" /><datalist id="degree-options">${["Class 11", "Class 12", "B.Tech (1st Year)", "B.Tech (2nd Year)", "B.Tech (3rd Year)", "B.Tech (4th Year)", "Undergraduate", "Postgraduate", "PhD"].map((degree) => `<option value="${degree}"></option>`).join("")}</datalist></div><div class="form-field"><label for="setup-university">University / Institution</label><input id="setup-university" class="input" name="institution" value="${esc(w.institution)}" maxlength="200" required placeholder="Your college or school" /></div><div class="form-field full"><label for="setup-graduation">Expected graduation year</label><select id="setup-graduation" class="input" name="graduation_year" required><option value="">Choose a year</option>${years.map((year) => `<option value="${year}" ${Number(w.graduation_year) === year ? "selected" : ""}>${year}</option>`).join("")}</select></div></div>
+        <div class="divider"></div><h2>${icon("shield")}Eligibility details</h2><p class="section-copy">Optional. Leave unknown details blank; IRIS will ask you to confirm them rather than assume eligibility.</p><div class="form-grid"><div class="form-field"><label for="setup-marks">Class 12 marks (%)</label><input id="setup-marks" class="input" name="class_12_pct" type="number" min="0" max="100" step="0.01" value="${esc(w.class_12_pct)}" /></div><div class="form-field"><label for="setup-income">Annual family income (INR)</label><input id="setup-income" class="input" name="family_income_inr" type="number" min="0" step="1" value="${esc(w.family_income_inr)}" /></div><div class="form-field full"><label for="setup-ranking">Is your engineering institution in the NIRF top 50?</label><select id="setup-ranking" class="input" name="nirf_top_50"><option value="" ${w.nirf_top_50 === "" ? "selected" : ""}>Not confirmed</option><option value="true" ${w.nirf_top_50 === "true" ? "selected" : ""}>Yes, I have checked the current ranking</option><option value="false" ${w.nirf_top_50 === "false" ? "selected" : ""}>No</option></select></div></div>
         <div class="divider"></div><h2>${icon("chart")}A few things you’re good at</h2><p class="section-copy">Skills are optional. Curiosity counts, too.</p><div class="skill-input-wrap">${icon("search")}<input id="setup-skills" class="input" placeholder="Add a skill and press Enter (e.g. Python, Design)" aria-label="Add a skill" maxlength="60" /></div><div id="editable-skill-tags" class="skill-tags">${skillTagsEditable()}</div>
         <div class="wizard-resume" data-dropzone>${icon("document")}<div><strong>${esc(S.profile?.resume_filename || "Bring a little more of your story")}</strong><small>${S.profile?.resume_filename ? "Your resume is saved to your profile." : "Optional · PDF, DOCX, or TXT · up to 5 MB"}</small></div><button class="button secondary small" data-action="upload-resume" type="button">${icon("upload")}${S.profile?.resume_filename ? "Replace" : "Upload"}</button></div><p id="wizard-form-error" class="form-message" role="alert" hidden></p><div class="wizard-actions"><small>Your information helps personalize your own workspace.</small><button id="wizard-continue" class="button primary" type="submit">Save and continue ${icon("arrow")}</button></div></form>
         </div></div>`;
@@ -1067,6 +1055,7 @@
         `<div class="onboarding-container wizard-step-two">${meta}${heading("onboarding", "FOLLOW YOUR CURIOSITY", "What are you looking forward to?", "Choose the possibilities that interest you. You can pick more than one — and change your mind later.")}
       <div class="surface wizard-card"><h2>${icon("compass")}What opportunities are you interested in?</h2><p class="section-copy">A direction is all we need. We’ll help you explore the rest.</p><div class="interest-grid">${categories
         .slice(1)
+        .filter((category) => category !== "Olympiads")
         .map(
           (category) =>
             `<button class="interest-card ${w.domains.has(category) ? "selected" : ""}" data-action="interest" data-domain="${esc(category)}" aria-pressed="${w.domains.has(category)}"><span class="interest-check">${w.domains.has(category) ? icon("check") : ""}</span>${icon(categoryIcons[category])}<strong>${category}</strong><p>${categoryDescriptions[category]}</p></button>`,
@@ -1079,23 +1068,29 @@
   function renderLogin() {
     const signup = S.authMode === "signup";
     $("view-login").innerHTML =
-      `<div class="login-layout"><div class="login-art"><span class="eyebrow" style="color:#C9AF72;margin-bottom:20px">A WORLD OF POSSIBILITY</span><h2>Better opportunities.<br /><span>A brighter you.</span></h2><p>Scholarships, experiences, and a little direction for the person you’re becoming.</p></div><div class="login-panel"><div class="brand" style="padding:0;color:var(--ink)"><img src="assets/iris-bird-logo@2x.png" alt="" /><span>IRIS <span class="brand-light" style="color:#B99C55">onE</span></span></div><span class="eyebrow">YOUR NEXT CHAPTER</span><h1 id="login-heading">${signup ? "A fresh start, together." : "Welcome back."}</h1><p>${signup ? "Make a little space for your next big possibility." : "Your possibilities are right where you left them."}</p><form id="auth-form">${signup ? '<div class="form-field"><label for="auth-name">Full name</label><input id="auth-name" name="name" class="input" autocomplete="name" required maxlength="120" placeholder="Your name" /></div>' : ""}<div class="form-field"><label for="auth-email">Email address</label><input id="auth-email" type="email" class="input" name="email" autocomplete="email" required placeholder="you@university.edu" /></div><div class="form-field"><label for="auth-password">Password</label><input id="auth-password" type="password" class="input" name="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="${signup ? 8 : 1}" maxlength="72" required placeholder="${signup ? "At least 8 characters" : "Your password"}" /></div><p id="auth-error" class="form-message" role="alert" hidden></p><button id="auth-submit" class="button primary wide" type="submit">${signup ? "Create your space" : "Sign in to your space"} ${icon("arrow")}</button></form><div class="auth-switch">${signup ? "Already part of IRIS?" : "A new chapter?"} <button data-action="auth-switch">${signup ? "Sign in" : "Create an account"}</button></div><div class="login-demo">Just taking a look? <a href="#home">Explore the sample workspace →</a></div></div></div>`;
+      `<div class="login-layout"><div class="login-art"><span class="eyebrow" style="color:#C9AF72;margin-bottom:20px">A WORLD OF POSSIBILITY</span><h2>Better opportunities.<br /><span>A brighter you.</span></h2><p>Scholarships, experiences, and a little direction for the person you’re becoming.</p></div><div class="login-panel"><div class="brand" style="padding:0;color:var(--ink)"><img src="assets/iris-bird-logo@2x.png" alt="" /><span>IRIS <span class="brand-light" style="color:#B99C55">onE</span></span></div><span class="eyebrow">YOUR NEXT CHAPTER</span><h1 id="login-heading">${signup ? "A fresh start, together." : "Welcome back."}</h1><p>${signup ? "Make a little space for your next big possibility." : "Your possibilities are right where you left them."}</p><form id="auth-form">${signup ? '<div class="form-field"><label for="auth-name">Full name</label><input id="auth-name" name="name" class="input" autocomplete="name" required maxlength="120" placeholder="Your name" /></div>' : ""}<div class="form-field"><label for="auth-email">Email address</label><input id="auth-email" type="email" class="input" name="email" autocomplete="email" required placeholder="you@university.edu" /></div><div class="form-field"><label for="auth-password">Password</label><input id="auth-password" type="password" class="input" name="password" autocomplete="${signup ? "new-password" : "current-password"}" minlength="${signup ? 8 : 1}" maxlength="72" required placeholder="${signup ? "At least 8 characters" : "Your password"}" /></div><p id="auth-error" class="form-message" role="alert" hidden></p><button id="auth-submit" class="button primary wide" type="submit">${signup ? "Create your space" : "Sign in to your space"} ${icon("arrow")}</button></form><div class="auth-switch">${signup ? "Already part of IRIS?" : "A new chapter?"} <button data-action="auth-switch">${signup ? "Sign in" : "Create an account"}</button></div><div class="login-demo">Just taking a look? <a href="#home">Explore the guest workspace →</a></div></div></div>`;
   }
 
   async function loadWorkspace({ render = true } = {}) {
     const version = ++S.loadVersion;
     S.loading = true;
-    const endpoints = [
-      "/profile",
-      "/opportunities",
-      "/opportunities/saved",
-      "/applications/overview",
-      "/sync/status",
-      "/platform/config",
-    ];
-    const results = await Promise.allSettled(
-      endpoints.map((endpoint) => api(endpoint)),
+    // Establish the signed workspace cookie before parallel requests on first visit.
+    const profileResult = await api("/profile").then(
+      (value) => ({ status: "fulfilled", value }),
+      (reason) => ({ status: "rejected", reason }),
     );
+    const results = [
+      profileResult,
+      ...(await Promise.allSettled(
+        [
+          "/opportunities",
+          "/opportunities/saved",
+          "/applications/overview",
+          "/sync/status",
+          "/platform/config",
+        ].map((endpoint) => api(endpoint)),
+      )),
+    ];
     if (version !== S.loadVersion) return;
     const [profile, opportunities, saved, applications, sync, config] = results;
     const critical = [profile, opportunities].find(
@@ -1110,6 +1105,18 @@
       S.applications = applications.value.applications;
     if (sync.status === "fulfilled") S.sync = sync.value;
     if (config.status === "fulfilled") S.config = config.value;
+    let banner = $("runtime-banner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "runtime-banner";
+      banner.className = "runtime-banner";
+      banner.setAttribute("role", "status");
+      $("main-content").prepend(banner);
+    }
+    banner.hidden = false;
+    banner.textContent = S.config?.is_simulated
+      ? "DEMO MODE · Sample catalog and profile. External services are disabled; no live verification is simulated."
+      : "LIVE MODE · Program availability is confirmed only by a recent live verification badge. Cached records may be unconfirmed.";
     const noncritical = [saved, applications, sync, config].filter(
       (result) => result.status === "rejected",
     );
@@ -1607,6 +1614,9 @@
       if (String(w[key] || "").trim()) values[key] = String(w[key]).trim();
     if (w.age) values.age = Number(w.age);
     if (w.graduation_year) values.graduation_year = Number(w.graduation_year);
+    for (const key of ["class_12_pct", "family_income_inr"])
+      values[key] = w[key] === "" ? null : Number(w[key]);
+    values.nirf_top_50 = w.nirf_top_50 === "" ? null : w.nirf_top_50 === "true";
     if (complete) values.onboarding_complete = true;
     S.profile = await post("/profile/update", values);
     updateShell();
@@ -1909,6 +1919,28 @@
   async function action(name, el) {
     const id = el.dataset.id;
     switch (name) {
+      case "export-data": {
+        const response = await api("/profile/export", { raw: true });
+        const blob = await response.blob();
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "iris-workspace.json";
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        toast("Your workspace export is ready.");
+        break;
+      }
+      case "remove-resume":
+        el.disabled = true;
+        try {
+          S.profile = await api("/profile/resume", { method: "DELETE" });
+          renderSettings();
+          updateShell();
+          toast("Stored resume text and file details removed.");
+        } finally {
+          if (el.isConnected) el.disabled = false;
+        }
+        break;
       case "open-detail":
         navigate("detail", id);
         break;
@@ -1918,6 +1950,19 @@
       case "reload":
         await loadWorkspace();
         if (S.view === "detail") await loadDetail(S.detailId, true);
+        break;
+      case "home-category":
+        if (el.dataset.homeCategory === "AI Assistant") navigate("ai-assistant");
+        else {
+          S.filter = {
+            category: el.dataset.homeCategory,
+            query: "",
+            location: "",
+            deadline: "",
+            sort: "match",
+          };
+          navigate("opportunities");
+        }
         break;
       case "category":
         S.filter.category = el.dataset.category;
@@ -2108,6 +2153,16 @@
   document.addEventListener("submit", (event) => {
     const form = event.target;
     const handler = {
+      "home-search-form": () => {
+        S.filter = {
+          category: "All Opportunities",
+          query: $("home-search-input").value.trim(),
+          location: "",
+          deadline: "",
+          sort: "match",
+        };
+        navigate("opportunities");
+      },
       "opportunity-search-form": () => {
         S.filter.query = $("opportunity-search").value.trim();
         renderResults();
@@ -2243,7 +2298,10 @@
       event.target.value = "";
       $("editable-skill-tags").innerHTML = skillTagsEditable();
     }
-    if (event.key === "Enter" && event.target.matches(".opportunity-card")) {
+    if (
+      event.key === "Enter" &&
+      event.target.matches(".opportunity-card, .featured-opportunity")
+    ) {
       event.preventDefault();
       navigate("detail", event.target.dataset.id);
     }
